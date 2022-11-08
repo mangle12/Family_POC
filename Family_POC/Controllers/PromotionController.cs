@@ -1,20 +1,31 @@
-﻿using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Caching.Distributed;
-
-namespace Family_POC.Controllers
+﻿namespace Family_POC.Controllers
 {
     [ApiController]
     [Route("[controller]")]
-    public class PromotionController : ControllerBase
-    {
-        private readonly IDistributedCache _cache;
+    public class PromotionController : BaseApiController
+    {        
+        private readonly IPromotionService _promotionService;
 
-        public PromotionController(IDistributedCache cache)
+        public PromotionController(IPromotionService promotionService)
         {
-            _cache = cache;
+            _promotionService = promotionService;
         }
 
+        [HttpGet]
+        public async Task<ResponseResult<List<FmActivity>>> GetAllActivity()
+        {
+            var result = await _promotionService.GetAllActivityAsync();
 
+            return SuccessResult(result);
+        }
+
+        [HttpPost("GetPromotion")]
+        public async Task<ResponseResult<GetPromotionRes>> GetPromotion(List<GetPromotionReq> req)
+        {
+            var result = await _promotionService.GetPromotionAsync(req);
+
+            return SuccessResult(result);
+        }
 
     }
 }
