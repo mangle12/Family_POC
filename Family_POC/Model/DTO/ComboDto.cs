@@ -4,8 +4,8 @@
     {
         public string Pluno { get; set; }
 
-        public int qty { get; set; }
+        public decimal Qty { get; set; }
 
-        public decimal saleoff { get; set; }
+        public decimal? Saleoff { get; set; }
     }
 }

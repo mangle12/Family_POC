@@ -1,4 +1,6 @@
-﻿namespace Family_POC.Controllers
+﻿
+
+namespace Family_POC.Controllers
 {
     [ApiController]
     [Route("[controller]")]
@@ -19,12 +21,20 @@
             return SuccessResult(result);
         }
 
-        [HttpPost("GetPromotion")]
-        public async Task<ResponseResult<GetPromotionRes>> GetPromotion(List<GetPromotionReq> req)
+        [HttpGet("GetPromotionToRedis")]
+        public async Task<IActionResult> GetPromotionToRedis()
         {
-            var result = await _promotionService.GetPromotionAsync(req);
+            await _promotionService.GetPromotionToRedisAsync();
 
-            return SuccessResult(result);
+            return Ok();
+        }
+
+        [HttpPost("GetPromotionPrice")]
+        public async Task<IActionResult> GetPromotionPrice(List<GetPromotionPriceReq> req)
+        {
+            await _promotionService.GetPromotionPriceAsync(req);
+
+            return Ok();
         }
 
     }

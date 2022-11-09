@@ -4,6 +4,8 @@
     {
         public Task<List<FmActivity>> GetAllActivityAsync();
 
-        public Task<GetPromotionRes> GetPromotionAsync(List<GetPromotionReq> req);
+        public Task GetPromotionToRedisAsync();
+
+        public Task GetPromotionPriceAsync(List<GetPromotionPriceReq> req);
     }
 }

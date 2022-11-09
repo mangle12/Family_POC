@@ -1,6 +1,6 @@
 ﻿namespace Family_POC.Model.Request
 {
-    public class GetPromotionReq
+    public class GetPromotionPriceReq
     {
         public string Pluno { get; set; }
 
