@@ -7,6 +7,7 @@ namespace Family_POC.Service
         private readonly IDistributedCache _cache;
         private readonly IDbService _dbService;
         private static decimal _totalPrice;
+        private static IList<IList<string>> _permuteLists = new List<IList<string>>(); // (組合品/單品)促銷排列組合
 
         public PromotionService(IDistributedCache cache, IDbService dbService)
         {
@@ -112,13 +113,13 @@ namespace Family_POC.Service
             _totalPrice = await GetTotalPrice(req);
 
             // 取得組合促銷資料 form Redis
-            await GetPmt45DetailOnRedis(req);
+            await GetPmtDetailOnRedis(req);
 
             sw.Stop();
             Console.WriteLine($"耗時 : {sw.ElapsedMilliseconds} 豪秒");
         }
 
-        private async Task GetPmt45DetailOnRedis(List<GetPromotionPriceReq> req)
+        private async Task GetPmtDetailOnRedis(List<GetPromotionPriceReq> req)
         {
             var promotionMainDto = new PromotionMainDto()
             { 
@@ -133,26 +134,38 @@ namespace Family_POC.Service
                 var promotionString = await _cache.GetStringAsync(item.Pluno);
                 var redisDto = JsonSerializer.Deserialize<PromotionMainDto>(promotionString);
 
+                // 組合品促銷
                 foreach (var promotionDto in redisDto.Pmt45)
                 {
-                    var noContainRow = promotionDto.Combo.Where(x => !inputPmtList.Contains(x.Pluno)); // 搜尋出不在此次input的商品編號
+                    var noContainRow45 = promotionDto.Combo.Where(x => !inputPmtList.Contains(x.Pluno)); // 搜尋出不在此次input的商品編號
 
                     // 若有不包含在此次input的商品編號,則不加入到促銷陣列內
-                    if (noContainRow.Count() == 0)
+                    if (noContainRow45.Count() == 0)
                         promotionMainDto.Pmt45.Add(promotionDto);
-                }                
-            }
-            promotionMainDto.Pmt45 = promotionMainDto.Pmt45.Distinct(x => x.P_No).ToList(); // 過濾重複促銷組合
+                }
 
-            var permuteLists = PermutationsUtil.Permute(promotionMainDto.Pmt45.Select(x => x.P_No).ToList());
+                // 單品促銷
+                // 如果同品號有兩種單品促銷以上，選擇折扣率最大的單品促銷
+                var firstCombo = redisDto.Pmt123.Select(x => x.Combo.First()).OrderBy(y => y.Saleoff).First(); // 取得最大則扣率的Combo ( *每個PromotionDto只會有一個Combo* )
+                var firstPromotionDto = redisDto.Pmt123.Where(x => x.Combo.First() == firstCombo).First(); // 依據最大則扣率的Combo取得該筆PromotionDto
+
+                var noContainRow123 = firstPromotionDto.Combo.Where(x => !inputPmtList.Contains(x.Pluno)); // 搜尋出不在此次input的商品編號
+                if (noContainRow123.Count() == 0)
+                    promotionMainDto.Pmt123.Add(firstPromotionDto);
+            }
+
+            promotionMainDto.Pmt45 = promotionMainDto.Pmt45.Distinct(x => x.P_No).ToList(); // 過濾重複組合促銷
+
+            // 計算排列組合
+            _permuteLists = PermutationsUtil.Permute(promotionMainDto.Pmt45.Select(x => x.P_No).ToList());
 
             // 計算排列組合後商品數量
-            var countLists = await GetPermuteCount(permuteLists, req, promotionMainDto);
+            var countLists = await GetPermuteCount(req, promotionMainDto);
 
             // 計算促銷組合價錢
-            var priceList = await GetPermutePrice(permuteLists, countLists, promotionMainDto);
+            var priceList = await GetPermutePrice(countLists, promotionMainDto);
 
-            PrintResult(permuteLists, countLists, priceList); // 印出排列組合&組合數量
+            PrintResult(countLists, priceList); // 印出排列組合&組合數量
         }
 
         /// <summary>
@@ -160,7 +173,7 @@ namespace Family_POC.Service
         /// </summary>
         /// <param name="permuteLists">促銷排列組合</param>
         /// <param name="countLists">促銷組數</param>
-        private static void PrintResult(IList<IList<string>> permuteLists, IList<IList<int>> countLists, IList<decimal> priceList)
+        private static void PrintResult(IList<IList<int>> countLists, IList<decimal> priceList)
         {
 
             Console.WriteLine("pluno = 49233006, qty = 5, price = 100");
@@ -176,9 +189,9 @@ namespace Family_POC.Service
             Console.WriteLine("");
 
             Console.WriteLine("[");
-            for (int i = 0; i < permuteLists.Count; i++)
+            for (int i = 0; i < _permuteLists.Count; i++)
             {
-                Console.WriteLine($"    [{string.Join(',', permuteLists[i])}] ({string.Join(',', countLists[i])}) (原價:{_totalPrice} 促銷價:{Decimal.ToInt32(priceList[i])} 折扣:{_totalPrice - Decimal.ToInt32(priceList[i])})");
+                Console.WriteLine($"    [{string.Join(',', _permuteLists[i])}] ({string.Join(',', countLists[i])}) (原價:{_totalPrice} 促銷價:{Decimal.ToInt32(priceList[i])} 折扣:{_totalPrice - Decimal.ToInt32(priceList[i])})");
             }
 
             Console.WriteLine("]");
@@ -187,29 +200,33 @@ namespace Family_POC.Service
         /// <summary>
         /// 計算排列組合後組合數量
         /// </summary>
+        /// <param name="permuteLists">組合品促銷 排列組合</param>
+        /// <param name="req">購買的商品Model</param>
+        /// <param name="promotionMainDto">Redis內符合商品的促銷內容</param>
         /// <returns></returns>
-        private async Task<IList<IList<int>>> GetPermuteCount(IList<IList<string>> permuteLists, List<GetPromotionPriceReq> req, PromotionMainDto promotionMainDto)
+        private async Task<IList<IList<int>>> GetPermuteCount(List<GetPromotionPriceReq> req, PromotionMainDto promotionMainDto)
         {
             IList<IList<int>> countLists = new List<IList<int>>();
 
             // 取得每一組排列組合
-            foreach (var permuteList in permuteLists)
+            foreach (var permuteList in _permuteLists)
             {
                 var permuteCountList = new List<int>();
-                
+
+                // 複製req當作計算扣除組合促銷後的剩餘商品數量
                 var copyReq = req.ConvertAll(s => new GetPromotionPriceReq { Pluno = s.Pluno, Qty = s.Qty, Price = s.Price }).ToList();
 
-                // 取得促銷方案
+                // 取得單一組合促銷方案(Pmt45)
                 foreach (var permute in permuteList)
                 {
                     var pmt45ComboList = promotionMainDto.Pmt45.Where(x => x.P_No == permute).First().Combo;
 
                     // 扣除商品數量&計算組數
-                    /// 取得輸入商品中符合促銷的商品組合
+                    // 取得input商品中符合組合促銷的商品組合
                     var currentPromotionPriceList = copyReq.Where(x => pmt45ComboList.Select(y => y.Pluno).Contains(x.Pluno)).ToList();
-                    var promotionCount = 0;
+                    var promotion45Count = 0; // 組合促銷組數
 
-                    while (currentPromotionPriceList.Select(x => x.Qty).All(y => y > 0)) // 如果輸入商品組合有一個不為0就多新增一組商品組合並扣除數量
+                    while (currentPromotionPriceList.Select(x => x.Qty).All(y => y > 0)) // 如果輸入商品組合數量都不為0就多新增一組商品組合並扣除數量
                     {
                         foreach (var promotionPrice in currentPromotionPriceList)
                         {
@@ -218,10 +235,32 @@ namespace Family_POC.Service
                         }
 
                         // 促銷組數+1 
-                        promotionCount++;                   
+                        promotion45Count++;
                     }
 
-                    permuteCountList.Add(promotionCount);
+                    permuteCountList.Add(promotion45Count);
+                }
+
+                // 若input商品還有剩，則計算單品促銷(Pmt123)
+                if (copyReq.Select(x => x.Qty).Any(y => y > 0))
+                {                    
+                    foreach (var item in copyReq)
+                    {
+                        var promotion123Count = 0; // 單品促銷組數
+
+                        var pmt123 = promotionMainDto.Pmt123.Where(x => x.Combo.First().Pluno == item.Pluno).First();
+                        var pmt123Combo = pmt123.Combo.First();
+
+                        while (item.Qty > 0)
+                        {
+                            item.Qty = item.Qty - pmt123Combo.Qty;
+                            promotion123Count++;
+                        }
+
+                        permuteCountList.Add(promotion123Count);
+
+                        permuteList.Add(pmt123.P_No);
+                    }                    
                 }
 
                 countLists.Add(permuteCountList);
@@ -234,19 +273,30 @@ namespace Family_POC.Service
         /// 計算促銷組合價錢
         /// </summary>
         /// <returns></returns>
-        private async Task<IList<decimal>> GetPermutePrice(IList<IList<string>> permuteLists, IList<IList<int>> countLists, PromotionMainDto promotionMainDto)
+        private async Task<IList<decimal>> GetPermutePrice(IList<IList<int>> countLists, PromotionMainDto promotionMainDto)
         {
             IList<decimal> priceLists = new List<decimal>();
             
             // 取得每一組排列組合
-            for (int i = 0; i < permuteLists.Count; i++)
+            for (int i = 0; i < _permuteLists.Count; i++)
             {
                 decimal salePrice = 0;
 
-                // 取得促銷
-                for (int j = 0; j < permuteLists[i].Count; j++)
+                for (int j = 0; j < _permuteLists[i].Count; j++)
                 {
-                    var permutePrice = promotionMainDto.Pmt45.Where(x => x.P_No == permuteLists[i][j]).First().SalePrice; //取得促銷方案價錢
+                    var pmt45 = promotionMainDto.Pmt45.Where(x => x.P_No == _permuteLists[i][j]).FirstOrDefault();
+                    decimal permutePrice = 0;
+
+                    if (pmt45 != null) // 取得組合品促銷方案價錢
+                    {
+                        permutePrice = pmt45.SalePrice;
+                    }
+                    else
+                    {
+                        var pmt123Saleoff = promotionMainDto.Pmt123.Where(x => x.P_No == _permuteLists[i][j]).First().Combo.First().Saleoff;
+                        permutePrice = (decimal)(pmt123Saleoff * 1000);
+                    }
+                    
                     salePrice += permutePrice * countLists[i][j];
                 }
 
