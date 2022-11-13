@@ -81,6 +81,7 @@ namespace Family_POC.Service
                     {                        
                         promotionDetailDto45.Type = mixPluDetail.P_Type.StringToEnum<PromotionType>().GetEnumDescription();
                         promotionDetailDto45.P_No = mixPluDetail.P_No;
+                        promotionDetailDto45.P_Mode = mixPlu.P_Mode;
 
                         var comboDto45 = new ComboDto()
                         {
@@ -146,7 +147,7 @@ namespace Family_POC.Service
 
                 // 單品促銷
                 // 如果同品號有兩種單品促銷以上，選擇折扣率最大的單品促銷
-                var firstCombo = redisDto.Pmt123.Select(x => x.Combo.First()).OrderBy(y => y.Saleoff).First(); // 取得最大則扣率的Combo ( *每個PromotionDto只會有一個Combo* )
+                var firstCombo = redisDto.Pmt123.Select(x => x.Combo.First()).OrderBy(y => y.Saleoff).First(); // 取得最大則扣率的Combo ( **每個PromotionDto只會有一個Combo** )
                 var firstPromotionDto = redisDto.Pmt123.Where(x => x.Combo.First() == firstCombo).First(); // 依據最大則扣率的Combo取得該筆PromotionDto
 
                 var noContainRow123 = firstPromotionDto.Combo.Where(x => !inputPmtList.Contains(x.Pluno)); // 搜尋出不在此次input的商品編號
@@ -183,8 +184,8 @@ namespace Family_POC.Service
             Console.WriteLine("");
 
             Console.WriteLine("A0001 = 150");
-            Console.WriteLine("A0002 = 200");
-            Console.WriteLine("A0003 = 50");
+            Console.WriteLine("A0002 = 210  (100+200)*0.7");
+            Console.WriteLine("A0003 = 280  (150+200)*0.8");
 
             Console.WriteLine("");
 
@@ -289,7 +290,20 @@ namespace Family_POC.Service
 
                     if (pmt45 != null) // 取得組合品促銷方案價錢
                     {
-                        permutePrice = pmt45.SalePrice;
+                        if (pmt45.P_Mode == "1") // 特價
+                        {
+                            permutePrice = pmt45.SalePrice;
+                        }
+                        else if (pmt45.P_Mode == "2") // 折扣
+                        {
+                            foreach (var combo in pmt45.Combo)
+                            {
+                                var comboPrice = req.Where(x => x.Pluno == combo.Pluno).First().Price;
+                                permutePrice += pmt45.SalePrice * comboPrice;
+                            }
+
+                            int a = 0;
+                        }                        
                     }
                     else // 取得單品促銷方案價錢
                     {
