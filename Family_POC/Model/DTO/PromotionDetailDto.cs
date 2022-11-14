@@ -8,6 +8,8 @@
 
         public string P_Mode { get; set; }
 
+        public string Mix_Mode { get; set; }
+
         public List<ComboDto> Combo { get; set; }      
         
         public decimal SalePrice { get; set; }

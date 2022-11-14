@@ -26,7 +26,8 @@ namespace Family_POC.Service
         {
             var promotionMainDto = new PromotionMainDto();
 
-            var pmtList = new List<string> { "49233006" , "49233007", "49233008" };
+            // 取得品號列表
+            var pmtList = await _dbService.GetAllAsync<string>(@"SELECT plu_no FROM fm_plu", new { });
 
             foreach (var item in pmtList)
             {
@@ -61,7 +62,7 @@ namespace Family_POC.Service
                 #region ptm45
                 promotionMainDto.Pmt45 = new List<PromotionDetailDto>() { };
 
-                // 取的固定組合單身主鍵
+                // 取得固定組合單身主鍵
                 var mixPluDetailPKList = await _dbService.GetAllAsync<PluPkDto>(@"SELECT a_no, p_type, p_no, pluno FROM fm_mix_plu_detail where pluno = @pluno", new { pluno = item });
 
                 foreach (var mixPluDetailPK in mixPluDetailPKList)
@@ -70,7 +71,7 @@ namespace Family_POC.Service
                     var comboList45 = new List<ComboDto>();
 
                     // 利用主鍵搜尋組合商品主檔
-                    var mixPlu = await _dbService.GetAsync<PromotionFromMixPluDto>(@"SELECT p_mode, no_vip_fix_amount, vip_fix_amount, no_vip_saleoff, vip_saleoff FROM fm_mix_plu where a_no = @Ano and p_type = @Ptype and p_no = @Pno ",
+                    var mixPlu = await _dbService.GetAsync<PromotionFromMixPluDto>(@"SELECT p_mode, mix_mode, no_vip_fix_amount, vip_fix_amount, no_vip_saleoff, vip_saleoff FROM fm_mix_plu where a_no = @Ano and p_type = @Ptype and p_no = @Pno ",
                         new { Ano = mixPluDetailPK.A_No, Ptype = mixPluDetailPK.P_Type, Pno = mixPluDetailPK.P_No });
 
                     // 利用主鍵搜尋組合商品明細檔
@@ -82,6 +83,7 @@ namespace Family_POC.Service
                         promotionDetailDto45.Type = mixPluDetail.P_Type.StringToEnum<PromotionType>().GetEnumDescription();
                         promotionDetailDto45.P_No = mixPluDetail.P_No;
                         promotionDetailDto45.P_Mode = mixPlu.P_Mode;
+                        promotionDetailDto45.Mix_Mode = mixPlu.Mix_Mode;
 
                         var comboDto45 = new ComboDto()
                         {
@@ -143,18 +145,28 @@ namespace Family_POC.Service
                     // 若有不包含在此次input的商品編號,則不加入到促銷陣列內
                     if (!noContainRow45.Any())
                     {
-                        if (promotionDto.P_Mode == "2") // 折扣
+                        if (promotionDto.Mix_Mode == "1") // 固定組合
                         {
-                            decimal permutePrice = 0;
-
-                            foreach (var combo in promotionDto.Combo)
+                            if (promotionDto.P_Mode == "2") // 折扣
                             {
-                                var inputPrice = req.Where(x => x.Pluno == combo.Pluno).First().Price;
-                                permutePrice += promotionDto.SalePrice * inputPrice * combo.Qty;
-                            }
+                                decimal permutePrice = 0;
 
-                            promotionDto.SalePrice = permutePrice;
+                                // 計算組合品搭贈價錢
+                                foreach (var combo in promotionDto.Combo)
+                                {
+                                    var inputPrice = req.Where(x => x.Pluno == combo.Pluno).First().Price;
+                                    permutePrice += promotionDto.SalePrice * inputPrice * combo.Qty;
+                                }
+
+                                promotionDto.SalePrice = permutePrice;
+                            }
                         }
+                        else if (promotionDto.Mix_Mode == "1") // 變動分量組合
+                        { 
+                        
+                        }
+
+
 
                         promotionMainDto.Pmt45.Add(promotionDto);
                     }
@@ -247,7 +259,7 @@ namespace Family_POC.Service
                         foreach (var promotionPrice in currentPromotionPriceList)
                         {
                             var promotion = copyReq.Where(x => x.Pluno == promotionPrice.Pluno).First();
-                            promotion.Qty -= pmt45ComboList.Where(x => x.Pluno == promotionPrice.Pluno).First().Qty;                        
+                            promotion.Qty -= pmt45ComboList.Where(x => x.Pluno == promotionPrice.Pluno).First().Qty;
                         }
 
                         // 促銷組數+1 
