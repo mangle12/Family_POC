@@ -1,4 +1,5 @@
-﻿using System.Diagnostics;
+﻿using StackExchange.Redis;
+using System.Diagnostics;
 
 namespace Family_POC.Service
 {
@@ -29,6 +30,8 @@ namespace Family_POC.Service
             // 取得品號列表
             var pmtList = await _dbService.GetAllAsync<string>(@"SELECT plu_no FROM fm_plu", new { });
 
+            #region 促銷方案
+
             foreach (var item in pmtList)
             {
                 #region ptm123
@@ -54,10 +57,8 @@ namespace Family_POC.Service
                     promotionDetailDto123.Combo = comboList123;
                     promotionMainDto.Pmt123.Add(promotionDetailDto123);
                 }
-
                 
                 #endregion
-
 
                 #region ptm45
                 promotionMainDto.Pmt45 = new List<PromotionDetailDto>() { };
@@ -93,7 +94,12 @@ namespace Family_POC.Service
                         comboList45.Add(comboDto45);
 
                         promotionDetailDto45.Combo = comboList45;
-                        promotionDetailDto45.SalePrice = mixPlu.P_Mode == "1" ? mixPlu.No_Vip_Fix_Amount : mixPlu.No_Vip_Saleoff; //P_Mode=1時取得No_Vip_Fix_Amount欄位/P_Mode=2時取得No_Vip_Saleoff欄位
+
+                        if (mixPlu.Mix_Mode == "1") // 固定組合促銷
+                        {
+                            promotionDetailDto45.SalePrice = mixPlu.P_Mode == "1" ? mixPlu.No_Vip_Fix_Amount : mixPlu.No_Vip_Saleoff; //P_Mode=1時取得No_Vip_Fix_Amount欄位/P_Mode=2時取得No_Vip_Saleoff欄位
+                        }
+                        
                     }
 
                     promotionMainDto.Pmt45.Add(promotionDetailDto45);
@@ -105,6 +111,19 @@ namespace Family_POC.Service
                 // 促銷表新增至Redis
                 await _cache.SetStringAsync(item, JsonSerializer.Serialize(promotionMainDto));
             }
+
+            #endregion
+
+            #region 分量折扣資料檔
+
+            // 取得品號列表
+            var mixPluMultipleList = await _dbService.GetAllAsync<MixPluMultipleDto>(@"SELECT a_no, p_type, p_no, seq, mod_qty, no_vip_amount, vip_amount, no_vip_saleoff, vip_saleoff, no_vip_saleprice, vip_saleprice FROM fm_mix_plu_multiple", new { });
+            foreach (var mixPlu in mixPluMultipleList)
+            {
+                var key = string.Format($"_{mixPlu.A_No}_{mixPlu.P_Type}_{mixPlu.P_No}");
+                await _cache.SetStringAsync(key, JsonSerializer.Serialize(mixPlu));
+            }
+            #endregion
         }
 
         public async Task GetPromotionPriceAsync(List<GetPromotionPriceReq> req)
