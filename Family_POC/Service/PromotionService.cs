@@ -142,7 +142,22 @@ namespace Family_POC.Service
 
                     // 若有不包含在此次input的商品編號,則不加入到促銷陣列內
                     if (!noContainRow45.Any())
+                    {
+                        if (promotionDto.P_Mode == "2") // 折扣
+                        {
+                            decimal permutePrice = 0;
+
+                            foreach (var combo in promotionDto.Combo)
+                            {
+                                var inputPrice = req.Where(x => x.Pluno == combo.Pluno).First().Price;
+                                permutePrice += promotionDto.SalePrice * inputPrice * combo.Qty;
+                            }
+
+                            promotionDto.SalePrice = permutePrice;
+                        }
+
                         promotionMainDto.Pmt45.Add(promotionDto);
+                    }
                 }
 
                 // 單品促銷
@@ -290,20 +305,7 @@ namespace Family_POC.Service
 
                     if (pmt45 != null) // 取得組合品促銷方案價錢
                     {
-                        if (pmt45.P_Mode == "1") // 特價
-                        {
-                            permutePrice = pmt45.SalePrice;
-                        }
-                        else if (pmt45.P_Mode == "2") // 折扣
-                        {
-                            foreach (var combo in pmt45.Combo)
-                            {
-                                var comboPrice = req.Where(x => x.Pluno == combo.Pluno).First().Price;
-                                permutePrice += pmt45.SalePrice * comboPrice;
-                            }
-
-                            int a = 0;
-                        }                        
+                        permutePrice = pmt45.SalePrice;
                     }
                     else // 取得單品促銷方案價錢
                     {
