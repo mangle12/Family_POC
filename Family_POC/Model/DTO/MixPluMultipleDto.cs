@@ -10,6 +10,8 @@
 
         public int Seq { get; set; }
 
+        public string P_Mode { get; set; }
+
         public decimal Mod_Qty { get; set; }
 
         public decimal No_Vip_Amount { get; set; }
@@ -20,8 +22,10 @@
 
         public decimal Vip_Saleoff { get; set; }
 
-        public string No_Vip_Saleprice { get; set; }
+        public decimal No_Vip_Saleprice { get; set; }
 
-        public string Vip_Saleprice { get; set; }
+        public decimal Vip_Saleprice { get; set; }
+
+        public List<string> PlunoList { get; set; }
     }
 }

@@ -2,6 +2,8 @@
 {
     public class PromotionFromPmtPluDetailDto
     {
+        public string A_No { get; set; }
+
         public string P_Type { get; set; }
 
         public string P_No { get; set; }
