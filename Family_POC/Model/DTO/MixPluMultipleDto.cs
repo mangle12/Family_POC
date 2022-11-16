@@ -24,8 +24,10 @@
 
         public decimal No_Vip_Saleprice { get; set; }
 
-        public decimal Vip_Saleprice { get; set; }
+        public decimal Vip_Saleprice { get; set; }        
 
         public List<string> PlunoList { get; set; }
+
+        public List<decimal> PlunoQty { get; set; } // 變動分量組合數量
     }
 }
