@@ -264,6 +264,7 @@ namespace Family_POC.Service
         /// </summary>
         /// <param name="permuteLists">促銷排列組合</param>
         /// <param name="countLists">促銷組數</param>
+        /// <param name="req">Request Input</param>
         private static void PrintResult(IList<IList<int>> countLists, IList<decimal> priceList, List<GetPromotionPriceReq> req)
         {
             Console.WriteLine("");
@@ -452,7 +453,7 @@ namespace Family_POC.Service
                     {
                         permutePrice = pmt45.SalePrice * countLists[i][j];
 
-                        foreach (var combo in pmt45.Combo) //計算扣除組合促銷後的剩餘商品數量
+                        foreach (var combo in pmt45.Combo) // 計算扣除組合促銷後的剩餘商品數量
                         {
                             var promotion = copyReq.Where(x => x.Pluno == combo.Pluno).First();
                             promotion.Qty -= combo.Qty;
