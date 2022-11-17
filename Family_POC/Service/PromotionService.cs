@@ -49,7 +49,7 @@ namespace Family_POC.Service
                     var comboList123 = new List<ComboDto>();
 
                     promotionDetailDto123.P_Key = string.Format($"{pmtPluDetail.A_No}_{pmtPluDetail.P_Type}_{pmtPluDetail.P_No}");
-                    promotionDetailDto123.Type = pmtPluDetail.P_Type.StringToEnum<PromotionType>().GetEnumDescription();
+                    promotionDetailDto123.P_Type = pmtPluDetail.P_Type;
                     promotionDetailDto123.P_No = pmtPluDetail.P_No;
 
                     var comboDto123 = new ComboDto()
@@ -88,7 +88,7 @@ namespace Family_POC.Service
                     foreach (var mixPluDetail in mixPluDetailList)
                     {
                         promotionDetailDto45.P_Key = string.Format($"{mixPluDetail.A_No}_{mixPluDetail.P_Type}_{mixPluDetail.P_No}");
-                        promotionDetailDto45.Type = mixPluDetail.P_Type.StringToEnum<PromotionType>().GetEnumDescription();
+                        promotionDetailDto45.P_Type = mixPluDetail.P_Type;
                         promotionDetailDto45.P_No = mixPluDetail.P_No;
                         promotionDetailDto45.P_Mode = mixPlu.P_Mode;
                         promotionDetailDto45.Mix_Mode = mixPlu.Mix_Mode;
@@ -188,40 +188,45 @@ namespace Family_POC.Service
             {
                 var promotionString = await _cache.GetStringAsync(item.Pluno);
                 var redisDto = JsonSerializer.Deserialize<PromotionMainDto>(promotionString);
-
-                // 組合品促銷
+                
                 foreach (var promotionDto in redisDto.Pmt45)
                 {
-
-                    if (promotionDto.Mix_Mode == "1") // 固定組合
+                    if (promotionDto.P_Type == PromotionType.Combination.Value()) // 組合品搭贈
                     {
-                        var noContainRow45 = promotionDto.Combo.Where(x => !inputPmtList.Contains(x.Pluno)); // 搜尋出不在此次input的商品編號
-
-                        // 若有不包含在此次input的商品編號,則不加入到促銷陣列內
-                        if (!noContainRow45.Any())
+                        if (promotionDto.Mix_Mode == "1") // 固定組合
                         {
-                            if (promotionDto.P_Mode == "2") // 折扣
-                            {
-                                decimal permutePrice = 0;
+                            var noContainRow45 = promotionDto.Combo.Where(x => !inputPmtList.Contains(x.Pluno)); // 搜尋出不在此次input的商品編號
 
-                                // 計算組合品搭贈價錢
-                                foreach (var combo in promotionDto.Combo)
+                            // 若有不包含在此次input的商品編號,則不加入到促銷陣列內
+                            if (!noContainRow45.Any())
+                            {
+                                if (promotionDto.P_Mode == "2") // 折扣
                                 {
-                                    var inputPrice = req.Where(x => x.Pluno == combo.Pluno).First().Price;
-                                    permutePrice += promotionDto.SalePrice * inputPrice * combo.Qty;
+                                    decimal permutePrice = 0;
+
+                                    // 計算組合品搭贈價錢
+                                    foreach (var combo in promotionDto.Combo)
+                                    {
+                                        var inputPrice = req.Where(x => x.Pluno == combo.Pluno).First().Price;
+                                        permutePrice += promotionDto.SalePrice * inputPrice * combo.Qty;
+                                    }
+
+                                    promotionDto.SalePrice = permutePrice;
                                 }
 
-                                promotionDto.SalePrice = permutePrice;
+                                promotionMainDto.Pmt45.Add(promotionDto);
                             }
-
-                            promotionMainDto.Pmt45.Add(promotionDto);
+                        }
+                        else if (promotionDto.Mix_Mode == "2") // 變動分量組合
+                        {
+                            var mixPluMultipleDto = JsonSerializer.Deserialize<List<MixPluMultipleDto>>(await _cache.GetStringAsync(promotionDto.P_Key));
+                            _mixPluMultipleDtoLists.AddRange(mixPluMultipleDto);
                         }
                     }
-                    else if (promotionDto.Mix_Mode == "2") // 變動分量組合
-                    {
-                        var mixPluMultipleDto = JsonSerializer.Deserialize<List<MixPluMultipleDto>>(await _cache.GetStringAsync(promotionDto.P_Key));
-                        _mixPluMultipleDtoLists.AddRange(mixPluMultipleDto);
-                    }
+                    else if (promotionDto.P_Type == PromotionType.Matching.Value()) // 配對搭贈
+                    { 
+                    
+                    }                    
                 }
 
                 // 單品促銷

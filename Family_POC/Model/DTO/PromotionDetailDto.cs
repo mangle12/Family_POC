@@ -4,7 +4,7 @@
     {
         public string P_Key { get; set; }
 
-        public string Type { get; set; }
+        public string P_Type { get; set; }
 
         public string P_No { get; set; }
 
