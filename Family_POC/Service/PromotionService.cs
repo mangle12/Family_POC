@@ -300,7 +300,7 @@ namespace Family_POC.Service
                 {
                     var pmt45List = promotionMainDto.Pmt45.Where(x => x.P_No == _permuteLists[i][j]);
 
-                    if (pmt45List.Count() > 0) // 固定組合
+                    if (pmt45List.Any()) // 固定組合數量>0
                     {
                         var pmt45ComboList = pmt45List.First().Combo;
 
@@ -338,7 +338,7 @@ namespace Family_POC.Service
                         var dKey = mixPluMultipleDtoList[0].A_No + mixPluMultipleDtoList[0].P_Type + mixPluMultipleDtoList[0].P_No + i.ToString() + j.ToString();
                         var multipleCountDtoList = new List<MultipleCountDto>();
 
-                        while (currentPromotionPriceList.Select(x => x.Qty).Any(y => y > minModQty)) // 同商品組合
+                        while (currentPromotionPriceList.Select(x => x.Qty).Any(y => y >= minModQty)) // 同商品組合
                         {
                             foreach (var promotionPrice in currentPromotionPriceList)
                             {
