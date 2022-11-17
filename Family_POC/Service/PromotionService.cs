@@ -6,10 +6,10 @@ namespace Family_POC.Service
     {
         private readonly IDistributedCache _cache;
         private readonly IDbService _dbService;
-        private static decimal _totalPrice;
-        private static IList<IList<string>> _permuteLists; // (組合品/單品)促銷排列組合
+        private static decimal _totalPrice; // 此次購買原價
+        private static IList<IList<string>> _permuteLists; // 促銷排列組合
         private static List<MixPluMultipleDto> _mixPluMultipleDtoLists; // 變動分量組合
-        private static Dictionary<string, List<MultipleCountDto>> _multipleCountDictionary; // 變動分量組合seq組數
+        private static Dictionary<string, List<MultipleCountDto>> _multipleCountDictionary; // 變動分量組合組數
 
         public PromotionService(IDistributedCache cache, IDbService dbService)
         {
@@ -20,12 +20,6 @@ namespace Family_POC.Service
             _permuteLists = new List<IList<string>>();
             _mixPluMultipleDtoLists = new List<MixPluMultipleDto>();
             _multipleCountDictionary = new Dictionary<string, List<MultipleCountDto>>();
-        }
-
-        public async Task<List<FmActivity>> GetAllActivityAsync()
-        {
-            var activityList = await _dbService.GetAllAsync<FmActivity>("SELECT * FROM fm_activity", new { });
-            return activityList;
         }
 
         public async Task GetPromotionToRedisAsync()
@@ -111,7 +105,6 @@ namespace Family_POC.Service
 
                     promotionMainDto.Pmt45.Add(promotionDetailDto45);
                 }
-
                 #endregion
 
 
@@ -134,15 +127,13 @@ namespace Family_POC.Service
 
                 var pmtPluDetailList = await _dbService.GetAllAsync<MixPluDetailDto>("SELECT pluno, qty FROM fm_mix_plu_detail where a_no = @aNo and p_type = @pType and p_no = @pNo ", new { aNo = mixPlu.A_No, pType = mixPlu.P_Type, pNo = mixPlu.P_No });
 
-                decimal originalPrice = 0;
-
                 var plunoList = new List<string>();
                 var plunoQty = new List<decimal>();
 
                 foreach (var detail in pmtPluDetailList)
                 {
-                    plunoList.Add(detail.Pluno);
-                    plunoQty.Add(detail.Qty);
+                    plunoList.Add(detail.Pluno); // 特價代號列表
+                    plunoQty.Add(detail.Qty); // 數量倍數列表
                 }
 
                 var matchList = mixPluMultipleList.Where(x => x.A_No == mixPlu.A_No & x.P_Type == mixPlu.P_Type & x.P_No == mixPlu.P_No).ToList();
