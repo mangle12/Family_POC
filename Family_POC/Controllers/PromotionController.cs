@@ -13,14 +13,10 @@ namespace Family_POC.Controllers
             _promotionService = promotionService;
         }
 
-        [HttpGet]
-        public async Task<ResponseResult<List<FmActivity>>> GetAllActivity()
-        {
-            var result = await _promotionService.GetAllActivityAsync();
-
-            return SuccessResult(result);
-        }
-
+        /// <summary>
+        /// 將促銷表寫入Redis(背景執行)
+        /// </summary>
+        /// <returns></returns>
         [HttpGet("GetPromotionToRedis")]
         public async Task<IActionResult> GetPromotionToRedis()
         {
@@ -29,6 +25,10 @@ namespace Family_POC.Controllers
             return Ok();
         }
 
+        /// <summary>
+        /// 取得促銷最佳解
+        /// </summary>
+        /// <returns></returns>
         [HttpPost("GetPromotionPrice")]
         public async Task<IActionResult> GetPromotionPrice(List<GetPromotionPriceReq> req)
         {
