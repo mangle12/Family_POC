@@ -1,6 +1,7 @@
 ﻿using Family_POC.Model.DTO;
 using Microsoft.AspNetCore.DataProtection.KeyManagement;
 using System.Diagnostics;
+using System.Linq;
 
 namespace Family_POC.Service
 {
@@ -419,72 +420,63 @@ namespace Family_POC.Service
                         var dKey = mixPluMultipleDtoList[0].A_No + mixPluMultipleDtoList[0].P_Type + mixPluMultipleDtoList[0].P_No + i.ToString() + j.ToString();
                         var multipleCountDtoList = new List<MultipleCountDto>();
 
-                        while (currentPromotionPriceList.Select(x => x.Qty).Any(y => y >= minModQty)) // 同商品組合
+                        var promotionList = new List<string>(); // 排列相同促銷的所有品項
+
+                        foreach (var currentPromotion in currentPromotionPriceList)
                         {
-                            foreach (var promotionPrice in currentPromotionPriceList)
+                            for (int c = 0; c < currentPromotion.Qty; c++)
                             {
-                                var promotion = copyReq.Where(x => x.Pluno == promotionPrice.Pluno).First();
-                                decimal result = 0;
+                                promotionList.Add(currentPromotion.Pluno);
+                            }
+                        }
 
-                                foreach (var mixPluMultipleDto in mixPluMultipleDtoList) // 同商品
+                        decimal sumCount = promotionList.Count();
+                        int index = 0;
+                        
+                        while (sumCount >= minModQty)
+                        {
+                            foreach (var mixPluMultipleDto in mixPluMultipleDtoList)
+                            {
+                                if (sumCount < mixPluMultipleDto.Mod_Qty)
                                 {
-                                    var originQty = promotion.Qty;
-                                    result = Math.Floor(promotionPrice.Qty / mixPluMultipleDto.Mod_Qty);
-                                    promotion.Qty = promotionPrice.Qty % mixPluMultipleDto.Mod_Qty;
-
                                     multipleCountDtoList.Add(new MultipleCountDto()
                                     {
                                         PSeq = mixPluMultipleDto.Seq,
-                                        PCount = result
-                                    });
+                                        PCount = 0
+                                    });                                   
 
-                                    subProductList.Add(new GetPromotionPriceReq
-                                    {
-                                        Pluno = promotion.Pluno,
-                                        Qty = originQty - promotion.Qty,
-                                        Price = promotion.Price,
-                                    });
+                                    break;
                                 }
-
-                                // 增加促銷組數
-                                promotionMultiCount = decimal.ToInt32(promotionMultiCount + result);
-                            }
-                        }
-
-                        if (currentPromotionPriceList.Select(x => x.Qty).Sum(x => x) >= minModQty) // 不同商品組合
-                        {
-                            for (int k = 0; k < currentPromotionPriceList.Count; k++)
-                            {
-                                var promotion = copyReq.Where(x => x.Pluno == currentPromotionPriceList[k].Pluno).First();
-
-                                if (promotion.Qty > 0)
+                                else
                                 {
-                                    promotion.Qty = promotion.Qty - 1;
-
-                                    subProductList.Add(new GetPromotionPriceReq
+                                    multipleCountDtoList.Add(new MultipleCountDto()
                                     {
-                                        Pluno = promotion.Pluno,
-                                        Qty = 1,
-                                        Price = promotion.Price,
+                                        PSeq = mixPluMultipleDto.Seq,
+                                        PCount = 1
                                     });
 
-                                    if (k == minModQty - 1)
-                                        break;
-                                }   
-                            }
+                                    for (int c = 0; c < mixPluMultipleDto.Mod_Qty; c++)
+                                    {
+                                        subProductList.Add(new GetPromotionPriceReq
+                                        {
+                                            Pluno = promotionList[index],
+                                            Qty = 1,
+                                            Price = copyReq.Where(x => x.Pluno == promotionList[index]).First().Price,
+                                        });
 
-                            foreach (var mixPluMultipleDto in mixPluMultipleDtoList) // 同商品
-                            {
-                                multipleCountDtoList.Add(new MultipleCountDto()
-                                {
-                                    PSeq = mixPluMultipleDto.Seq,
-                                    PCount = mixPluMultipleDto.Mod_Qty
-                                });
-                            }
+                                        var promotion = copyReq.Where(x => x.Pluno == promotionList[index]).First();
+                                        promotion.Qty = promotion.Qty - 1;
 
-                            // 增加促銷組數 
-                            promotionMultiCount++;
-                        }
+                                        index++;
+                                    }
+
+                                    sumCount -= mixPluMultipleDto.Mod_Qty;
+                                }
+                                                                    
+                                // 增加促銷組數 
+                                promotionMultiCount++;
+                            }
+                        }                       
 
                         _multipleCountDict.Add(dKey, multipleCountDtoList);
                         
