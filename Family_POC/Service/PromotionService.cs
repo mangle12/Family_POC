@@ -183,12 +183,12 @@ namespace Family_POC.Service
 
             foreach (var item in req)
             {
-                var promotionString = await _cache.GetStringAsync(item.Pluno);
+                var promotionString = await _cache.GetStringAsync(item.Pluno); // 取得Redis內此品號的促銷表
 
                 if (promotionString == null)
                 {
-                    Console.WriteLine($"無此商品: {item}");
-                    break;
+                    Console.WriteLine($"--無此商品: {item.Pluno} --");
+                    return;
                 }
 
                 var redisDto = JsonSerializer.Deserialize<PromotionMainDto>(promotionString);
@@ -420,7 +420,7 @@ namespace Family_POC.Service
                         var dKey = mixPluMultipleDtoList[0].A_No + mixPluMultipleDtoList[0].P_Type + mixPluMultipleDtoList[0].P_No + i.ToString() + j.ToString();
                         var multipleCountDtoList = new List<MultipleCountDto>();
 
-                        var promotionList = new List<string>(); // 排列相同促銷的所有品項
+                        var promotionList = new List<string>(); // 依照傳入順序排列相同促銷的所有品項
 
                         foreach (var currentPromotion in currentPromotionPriceList)
                         {
@@ -437,7 +437,7 @@ namespace Family_POC.Service
                         {
                             foreach (var mixPluMultipleDto in mixPluMultipleDtoList)
                             {
-                                if (sumCount < mixPluMultipleDto.Mod_Qty)
+                                if (sumCount < mixPluMultipleDto.Mod_Qty) // 剩餘數量小於最小組數時跳出迴圈
                                 {
                                     multipleCountDtoList.Add(new MultipleCountDto()
                                     {
