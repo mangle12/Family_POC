@@ -70,7 +70,7 @@ namespace Family_POC.Service
                 #region ptm45
                 promotionMainDto.Pmt45 = new List<PromotionDetailDto>() { };
 
-                // 取得固定組合單身主鍵
+                // 取得組合品搭贈單身主鍵
                 var mixPluDetailPKList = await _dbService.GetAllAsync<PluPkDto>(@"SELECT a_no, p_type, p_no, pluno FROM fm_mix_plu_detail where pluno = @pluno", new { pluno = item.Plu_No });
 
                 foreach (var mixPluDetailPK in mixPluDetailPKList)
@@ -113,14 +113,13 @@ namespace Family_POC.Service
                 }
                 #endregion
 
-
                 // 促銷表新增至Redis
                 await _cache.SetStringAsync(item.Plu_No, JsonSerializer.Serialize(promotionMainDto));
             }
 
             #endregion
 
-            #region 分量折扣資料檔
+            #region 分量折扣資料檔(p_type = 4)
 
             // 取得品號列表
             var mixPluMultipleList = await _dbService.GetAllAsync<MixPluMultipleDto>(@"SELECT m.a_no, m.p_type, m.p_no, m.seq, m.mod_qty, m.no_vip_amount, m.vip_amount, m.no_vip_saleoff, m.vip_saleoff, m.no_vip_saleprice, m.vip_saleprice, p.p_mode FROM fm_mix_plu_multiple m
@@ -153,6 +152,48 @@ namespace Family_POC.Service
 
                 await _cache.SetStringAsync(key, JsonSerializer.Serialize(valueList));
             }
+            #endregion
+
+            #region 配對搭贈資料檔(p_type = 5)
+
+            // 取得配對搭贈列表
+            var mixAbpluDetailList = await _dbService.GetAllAsync<FmMixAbpluDetail>(@"SELECT m.a_no, m.p_type, m.p_no, m.plu_type, m.pluno, m.qty, p.p_mode FROM fm_mix_abplu_detail m
+                                                                                    inner join fm_mix_plu p on p.p_no = m.p_no where p.p_type = '5'", new { });
+
+            var distinctList = mixAbpluDetailList.DistinctBy(x => x.P_No).ToList();
+            var mixAbpluDetailDtoList = new List<FmMixAbpluDetailDto>();
+
+            foreach (var item in distinctList)
+            {
+                var fmMixAbpluDetailDto = new FmMixAbpluDetailDto();
+
+                var pNoAbpluDetailList = mixAbpluDetailList.Where(x => x.P_No == item.P_No);
+
+                var key = string.Format($"{item.A_No}_{item.P_Type}_{item.P_No}");
+
+                var abpluDetailDtoList = new List<AbpluDetailDto>();
+
+                foreach (var detail in pNoAbpluDetailList)
+                { 
+                    var abpluDetailDto = new AbpluDetailDto();
+                    abpluDetailDto.Pluno = detail.Pluno;
+                    abpluDetailDto.Qty = detail.Qty;
+                    abpluDetailDto.Remark = detail.Remark;
+                    abpluDetailDto.Ratio = detail.Ratio;
+
+                    abpluDetailDtoList.Add(abpluDetailDto);
+                }
+
+                fmMixAbpluDetailDto.A_No = item.A_No;
+                fmMixAbpluDetailDto.P_Type = item.P_Type;
+                fmMixAbpluDetailDto.P_No = item.P_No;
+                fmMixAbpluDetailDto.P_Mode = item.P_Mode;
+                fmMixAbpluDetailDto.Plu_Type= item.Plu_Type;
+                fmMixAbpluDetailDto.Detail = abpluDetailDtoList;
+
+                await _cache.SetStringAsync(key, JsonSerializer.Serialize(fmMixAbpluDetailDto));
+            }
+
             #endregion
         }
 
