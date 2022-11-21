@@ -378,7 +378,8 @@ namespace Family_POC.Service
             Console.WriteLine("[");
             for (int i = 0; i < _permuteLists.Count; i++)
             {
-                Console.WriteLine($"    [{string.Join(',', _permuteLists[i])}] ({string.Join(',', countLists[i])}) (原價:{_totalPrice} 促銷價:{Decimal.ToInt32(priceList[i])} 折扣:{_totalPrice - Decimal.ToInt32(priceList[i])})");
+                var math = Math.Round(Decimal.ToInt32(priceList[i]) / _totalPrice, 2);
+                Console.WriteLine($"    [{string.Join(',', _permuteLists[i])}] ({string.Join(',', countLists[i])}) (原價:{_totalPrice} 折:{_totalPrice - Decimal.ToInt32(priceList[i])} 折扣率:{math} 實際銷售金額:{Decimal.ToInt32(priceList[i])} )");
             }            
 
             Console.WriteLine("]");
