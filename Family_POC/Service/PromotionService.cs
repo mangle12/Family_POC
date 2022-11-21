@@ -318,7 +318,7 @@ namespace Family_POC.Service
                         {
                             var noContainRow45 = promotionDto.Combo.Where(x => inputPmtList.Contains(x.Pluno)); // 搜尋包含input的商品編號
 
-                            // 需同時符合A區和B區
+                            // 需同時符合A區和B區至少各一商品
                             if (noContainRow45.Where(x => x.Plu_Type == "1").Count() > 0 && noContainRow45.Where(x => x.Plu_Type == "2").Count() > 0)
                             {
                                 promotionMainDto.Pmt45.Add(promotionDto);
@@ -343,9 +343,10 @@ namespace Family_POC.Service
             promotionMainDto.Pmt45 = promotionMainDto.Pmt45.Distinct(x => x.P_No).ToList(); // 過濾重複組合促銷
             _mixPluMultipleDtoLists = _mixPluMultipleDtoLists.DistinctBy(x => new { x.A_No, x.P_Type, x.P_No, x.Seq }).ToList(); // 過濾重複變動分量組合促銷
 
-            var pNoList = promotionMainDto.Pmt123.Select(x => x.P_No).Union(promotionMainDto.Pmt45.Select(x => x.P_No).Union(_mixPluMultipleDtoLists.Select(x => x.P_No))).ToList(); // 取得固定促銷+變動分量組合的特價代號
+            // 取得符合條件的促銷代號
+            var pNoList = promotionMainDto.Pmt123.Select(x => x.P_No).Union(promotionMainDto.Pmt45.Select(x => x.P_No).Union(_mixPluMultipleDtoLists.Select(x => x.P_No))).ToList(); 
 
-            // 計算排列組合
+            // 計算促銷的排列組合
             _permuteLists = PermutationsUtil.Permute(pNoList);
 
             // 計算排列組合後商品數量
@@ -354,7 +355,8 @@ namespace Family_POC.Service
             // 計算促銷組合價錢
             var priceList = await GetPermutePrice(countLists, promotionMainDto, req);
 
-            PrintResult(countLists, priceList, req); // 印出排列組合&組合數量
+            // 印出排列組合 & 組合數量 & 價錢
+            PrintResult(countLists, priceList, req); 
         }
 
         /// <summary>
@@ -378,7 +380,7 @@ namespace Family_POC.Service
             Console.WriteLine("[");
             for (int i = 0; i < _permuteLists.Count; i++)
             {
-                var math = Math.Round(Decimal.ToInt32(priceList[i]) / _totalPrice, 2);
+                var math = Math.Round(Decimal.ToInt32(priceList[i]) / _totalPrice, 2); // 折扣率(四捨五入到小數點第二位)
                 Console.WriteLine($"    [{string.Join(',', _permuteLists[i])}] ({string.Join(',', countLists[i])}) (原價:{_totalPrice} 折:{_totalPrice - Decimal.ToInt32(priceList[i])} 折扣率:{math} 實際銷售金額:{Decimal.ToInt32(priceList[i])} )");
             }            
 
@@ -655,7 +657,7 @@ namespace Family_POC.Service
                     decimal salePrice = 0;
                     decimal discountPrice = 0;
 
-                    // 複製req當作計算扣除組合促銷後的剩餘商品數量(折扣需要)
+                    // 複製req當作計算扣除組合促銷後的剩餘商品數量
                     var copyReq = await GetInputReq(req);
 
                     for (int j = 0; j < _permuteLists[i].Count; j++)
