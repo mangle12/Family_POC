@@ -591,7 +591,7 @@ namespace Family_POC.Service
                                 // 增加促銷組數 
                                 promotionMultiCount++;
                             }
-                        }                       
+                        }
 
                         _multipleCountDict.Add(dKey, multipleCountDtoList);
                         
@@ -727,27 +727,39 @@ namespace Family_POC.Service
                                     }
                                     else if (firstMixPluMultipleDto.P_Mode == "3" & multipleCountDtoList.Count > 0) // 折價
                                     {
-                                        var reqPluno = copyReq.Where(x => firstMixPluMultipleDto.PlunoList.Contains(x.Pluno)).Single(); //剩餘商品數量
+                                        var reqPlunoList = copyReq.Where(x => firstMixPluMultipleDto.PlunoList.Contains(x.Pluno)).ToList(); //剩餘商品數量
                                         decimal discount = 0; //變動分量組合折價金額
                                         decimal discountCount = 0; //扣除數量
 
-                                        foreach (var mixPluMultipleDto in mixPluMultipleDtoList)
+                                        var minModQty = mixPluMultipleDtoList[mixPluMultipleDtoList.Count - 1].Mod_Qty; //最小組數
+                                        var sumCount = reqPlunoList.Sum(x => x.Qty);
+
+                                        while (sumCount >= minModQty)
                                         {
-                                            var pCount = multipleCountDtoList.Where(x => x.PSeq == mixPluMultipleDto.Seq).First().PCount; //組合數量
+                                            foreach (var mixPluMultipleDto in mixPluMultipleDtoList)
+                                            {
+                                                if (sumCount < mixPluMultipleDto.Mod_Qty) // 剩餘數量小於最小組數時跳出迴圈
+                                                {
+                                                    continue;
+                                                }
+                                                else
+                                                {
+                                                    var pCount = multipleCountDtoList.Where(x => x.PSeq == mixPluMultipleDto.Seq).First().PCount; //組合數量
+                                                    discount = pCount * mixPluMultipleDto.No_Vip_Amount; //折價金額(組數*折扣金額)
 
-                                            if (pCount == 0)
-                                                continue;
+                                                    var result = Math.Floor(sumCount / mixPluMultipleDto.Mod_Qty);
+                                                    sumCount = sumCount % mixPluMultipleDto.Mod_Qty;
 
-                                            discount = pCount * mixPluMultipleDto.No_Vip_Amount; //折價金額(組數*折扣金額)
-
-                                            discountPrice += discount; // 折價價格 (原價 - 折價金額總和)
-
-                                            // 扣除已計算數量
-                                            reqPluno.Qty -= mixPluMultipleDto.Mod_Qty;
-                                            discountCount += mixPluMultipleDto.Mod_Qty;
+                                                    discountPrice += discount * result; // 折價價格 (原價 - 折價金額總和)
+                                                }
+                                            }
                                         }
 
-                                        permutePrice = discountCount * reqPluno.Price;
+                                        // 計算金額
+                                        foreach (var reqPluno in reqPlunoList)
+                                        {
+                                            permutePrice += reqPluno.Qty * reqPluno.Price;                                            
+                                        }
                                     }
                                 }
                                 else
