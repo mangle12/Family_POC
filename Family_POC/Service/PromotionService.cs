@@ -776,9 +776,8 @@ namespace Family_POC.Service
                         foreach (var remainProduct in remainProductList)
                         {
                             permutePrice = remainProduct.Qty * remainProduct.Price;// (剩餘品項數量 * 品項價格)
-                        }
-
-                        salePrice += permutePrice;
+                            salePrice += permutePrice;
+                        }                        
                     }
 
                     if (discountPrice > 0)
