@@ -560,7 +560,7 @@ namespace Family_POC.Service
                                         PCount = 0
                                     });                                   
 
-                                    break;
+                                    continue;
                                 }
                                 else
                                 {
