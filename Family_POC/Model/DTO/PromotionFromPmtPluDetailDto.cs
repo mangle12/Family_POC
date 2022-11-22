@@ -8,6 +8,8 @@
 
         public string P_No { get; set; }
 
+        public string P_Name { get; set; }
+
         public string Pluno { get; set; }
 
         public decimal No_Vip_Saleoff { get; set; }

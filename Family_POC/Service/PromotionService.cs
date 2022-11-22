@@ -11,6 +11,8 @@ namespace Family_POC.Service
         private readonly IDbService _dbService;
         private static decimal _totalPrice; // 此次購買商品原總價
         private static IList<IList<string>> _permuteLists; // 符合促銷排列組合
+        private static IList<decimal> _priceList; // 促銷計算後價格
+        private static IList<IList<int>> _countLists; // 促銷數量
         private static List<MixPluMultipleDto> _mixPluMultipleDtoLists; // 促銷變動分量組合
         private static Dictionary<string, List<MultipleCountDto>> _multipleCountDict; // 促銷變動分量組合組數
         private static Dictionary<string, List<GetPromotionPriceReq>> _productListsDict; // 促銷品項組合
@@ -23,6 +25,8 @@ namespace Family_POC.Service
             _totalPrice = 0;
 
             _permuteLists = new List<IList<string>>();
+            _priceList = new List<decimal>();
+            _countLists = new List<IList<int>>();
             _mixPluMultipleDtoLists = new List<MixPluMultipleDto>();
             _multipleCountDict = new Dictionary<string, List<MultipleCountDto>>();
             _productListsDict = new Dictionary<string, List<GetPromotionPriceReq>>();
@@ -41,7 +45,8 @@ namespace Family_POC.Service
             foreach (var item in pmtList)
             {
                 #region ptm123
-                var pmtPluDetailList = await _dbService.GetAllAsync<PromotionFromPmtPluDetailDto>("SELECT a_no, p_type, p_no, pluno, no_vip_saleoff FROM fm_pmt_plu_detail where pluno = @pluno", new { pluno = item.Plu_No });
+                var pmtPluDetailList = await _dbService.GetAllAsync<PromotionFromPmtPluDetailDto>(@"SELECT d.a_no, d.p_type, d.p_no, p.p_name, d.pluno, d.no_vip_saleoff FROM fm_pmt_plu_detail d
+                                                                                                    inner join fm_pmt p on p.p_no = d.p_no where d.pluno = @pluno", new { pluno = item.Plu_No });
                 promotionMainDto.Pmt123 = new List<PromotionDetailDto>() { };
 
                 foreach (var pmtPluDetail in pmtPluDetailList)
@@ -52,6 +57,7 @@ namespace Family_POC.Service
                     promotionDetailDto123.P_Key = string.Format($"{pmtPluDetail.A_No}_{pmtPluDetail.P_Type}_{pmtPluDetail.P_No}");
                     promotionDetailDto123.P_Type = pmtPluDetail.P_Type;
                     promotionDetailDto123.P_No = pmtPluDetail.P_No;
+                    promotionDetailDto123.P_Name = pmtPluDetail.P_Name;
 
                     var comboDto123 = new ComboDto()
                     {
@@ -83,7 +89,8 @@ namespace Family_POC.Service
                         new { Ano = mixPluDetailPK.A_No, Ptype = mixPluDetailPK.P_Type, Pno = mixPluDetailPK.P_No });
 
                     // 利用主鍵搜尋組合商品明細檔
-                    var mixPluDetailList = await _dbService.GetAllAsync<PromotionFromPmtPluDetailDto>(@"SELECT a_no, p_type, p_no, pluno, qty FROM fm_mix_plu_detail where a_no = @Ano and p_type = @Ptype and p_no = @Pno ",
+                    var mixPluDetailList = await _dbService.GetAllAsync<PromotionFromPmtPluDetailDto>(@"SELECT d.a_no, d.p_type, d.p_no, p.p_name, d.pluno, d.qty FROM fm_mix_plu_detail d
+                                                                                                        inner join fm_mix_plu p on p.p_no = d.p_no where d.a_no = @Ano and d.p_type = @Ptype and d.p_no = @Pno ",
                         new { Ano = mixPluDetailPK.A_No, Ptype = mixPluDetailPK.P_Type, Pno = mixPluDetailPK.P_No });
 
                     foreach (var mixPluDetail in mixPluDetailList)
@@ -91,6 +98,7 @@ namespace Family_POC.Service
                         promotionDetailDto45.P_Key = string.Format($"{mixPluDetail.A_No}_{mixPluDetail.P_Type}_{mixPluDetail.P_No}");
                         promotionDetailDto45.P_Type = mixPluDetail.P_Type;
                         promotionDetailDto45.P_No = mixPluDetail.P_No;
+                        promotionDetailDto45.P_Name = mixPluDetail.P_Name;
                         promotionDetailDto45.P_Mode = mixPlu.P_Mode;
                         promotionDetailDto45.Mix_Mode = mixPlu.Mix_Mode;
 
@@ -166,7 +174,7 @@ namespace Family_POC.Service
             #region 分量折扣資料檔(p_type = 4)
 
             // 取得品號列表
-            var mixPluMultipleList = await _dbService.GetAllAsync<MixPluMultipleDto>(@"SELECT m.a_no, m.p_type, m.p_no, m.seq, m.mod_qty, m.no_vip_amount, m.vip_amount, m.no_vip_saleoff, m.vip_saleoff, m.no_vip_saleprice, m.vip_saleprice, p.p_mode FROM fm_mix_plu_multiple m
+            var mixPluMultipleList = await _dbService.GetAllAsync<MixPluMultipleDto>(@"SELECT m.a_no, m.p_type, m.p_no, p.p_name, m.seq, m.mod_qty, m.no_vip_amount, m.vip_amount, m.no_vip_saleoff, m.vip_saleoff, m.no_vip_saleprice, m.vip_saleprice, p.p_mode FROM fm_mix_plu_multiple m
                                                                                     inner join fm_mix_plu p on p.p_no = m.p_no", new { });
             foreach (var mixPlu in mixPluMultipleList)
             {
@@ -201,7 +209,7 @@ namespace Family_POC.Service
             #region 配對搭贈資料檔(p_type = 5)
 
             // 取得配對搭贈列表
-            var mixAbpluDetailList = await _dbService.GetAllAsync<FmMixAbpluDetail>(@"SELECT m.a_no, m.p_type, m.p_no, m.plu_type, m.pluno, m.qty, p.p_mode FROM fm_mix_abplu_detail m
+            var mixAbpluDetailList = await _dbService.GetAllAsync<FmMixAbpluDetail>(@"SELECT m.a_no, m.p_type, m.p_no, p.p_name, m.plu_type, m.pluno, m.qty, p.p_mode FROM fm_mix_abplu_detail m
                                                                                     inner join fm_mix_plu p on p.p_no = m.p_no where p.p_type = '5'", new { });
 
             var distinctList = mixAbpluDetailList.DistinctBy(x => x.P_No).ToList();
@@ -231,6 +239,7 @@ namespace Family_POC.Service
                 fmMixAbpluDetailDto.A_No = item.A_No;
                 fmMixAbpluDetailDto.P_Type = item.P_Type;
                 fmMixAbpluDetailDto.P_No = item.P_No;
+                fmMixAbpluDetailDto.P_Name = item.P_Name;
                 fmMixAbpluDetailDto.P_Mode = item.P_Mode;
                 fmMixAbpluDetailDto.Plu_Type= item.Plu_Type;
                 fmMixAbpluDetailDto.Detail = abpluDetailDtoList;
@@ -241,7 +250,7 @@ namespace Family_POC.Service
             #endregion
         }
 
-        public async Task GetPromotionPriceAsync(List<GetPromotionPriceReq> req)
+        public async Task<GetPromotionPriceResp> GetPromotionPriceAsync(List<GetPromotionPriceReq> req)
         {
             var sw = new Stopwatch();
             sw.Start();
@@ -254,6 +263,54 @@ namespace Family_POC.Service
 
             sw.Stop();
             Console.WriteLine($"耗時 : {sw.ElapsedMilliseconds} 豪秒");
+
+            var index = _priceList.IndexOf(_priceList.Min()); // 選出最優解(實際銷售金額最低金額)
+            var permuteList = _permuteLists[index];
+            var permuteDetailString = string.Empty;
+
+            var copeReq = await GetInputReq(req);
+            var pmtdetailList = new List<PmtdetailDto>();
+            foreach (var reqDetail in copeReq)
+            {
+                var pmtdetailDto = new PmtdetailDto();
+
+                pmtdetailDto.Plu = reqDetail.Pluno;
+
+                var pmtList = new List<PmtDto>();
+
+                for (int j = 0; j < permuteList.Count; j++)
+                {
+                    var pmt = new PmtDto();
+
+                    if (_productListsDict.ContainsKey($"{index}_{j}"))
+                    {
+                        var productList = _productListsDict[$"{index}_{j}"];
+
+                        var plunoList = productList.Where(x => x.Pluno == reqDetail.Pluno).ToList();
+
+                        pmt.Pmtno = permuteList[j];
+                        pmt.Pmtname = _mixPluMultipleDtoLists.SingleOrDefault(x => x.P_No == permuteList[j]).P_Name;
+                        pmt.Qty = plunoList.Count;
+
+                    }
+
+                    if(pmt.Qty > 0)
+                        pmtList.Add(pmt);
+                }
+
+                pmtdetailDto.Pmt = pmtList;
+
+                pmtdetailList.Add(pmtdetailDto);
+            }
+
+            // Response
+            var getPromotionPriceResp = new GetPromotionPriceResp() { 
+                Totleprice = decimal.ToInt32(_priceList.Min()),
+                Pmtdetail = pmtdetailList,
+            };
+
+
+            return getPromotionPriceResp;
         }
 
         private async Task GetPmtDetailOnRedis(List<GetPromotionPriceReq> req)
@@ -350,13 +407,13 @@ namespace Family_POC.Service
             _permuteLists = PermutationsUtil.Permute(pNoList);
 
             // 計算排列組合後商品數量
-            var countLists = await GetPermuteCount(req, promotionMainDto);
+            _countLists = await GetPermuteCount(req, promotionMainDto);
 
             // 計算促銷組合價錢
-            var priceList = await GetPermutePrice(countLists, promotionMainDto, req);
+            _priceList = await GetPermutePrice(promotionMainDto, req);
 
             // 印出排列組合 & 組合數量 & 價錢
-            PrintResult(countLists, priceList, req); 
+            PrintResult(req); 
         }
 
         /// <summary>
@@ -365,7 +422,7 @@ namespace Family_POC.Service
         /// <param name="permuteLists">促銷排列組合</param>
         /// <param name="countLists">促銷組數</param>
         /// <param name="req">Request Input</param>
-        private static void PrintResult(IList<IList<int>> countLists, IList<decimal> priceList, List<GetPromotionPriceReq> req)
+        private static void PrintResult(List<GetPromotionPriceReq> req)
         {
             Console.WriteLine("");
 
@@ -380,8 +437,8 @@ namespace Family_POC.Service
             Console.WriteLine("[");
             for (int i = 0; i < _permuteLists.Count; i++)
             {
-                var math = Math.Round(Decimal.ToInt32(priceList[i]) / _totalPrice, 2); // 折扣率(四捨五入到小數點第二位)
-                Console.WriteLine($"    [{string.Join(',', _permuteLists[i])}] ({string.Join(',', countLists[i])}) (原價:{_totalPrice} 折:{_totalPrice - Decimal.ToInt32(priceList[i])} 折扣率:{math} 實際銷售金額:{Decimal.ToInt32(priceList[i])} )");
+                var math = Math.Round(Decimal.ToInt32(_priceList[i]) / _totalPrice, 2); // 折扣率(四捨五入到小數點第二位)
+                Console.WriteLine($"    [{string.Join(',', _permuteLists[i])}] ({string.Join(',', _countLists[i])}) (原價:{_totalPrice} 折:{_totalPrice - Decimal.ToInt32(_priceList[i])} 折扣率:{math} 實際銷售金額:{Decimal.ToInt32(_priceList[i])} )");
             }            
 
             Console.WriteLine("]");
@@ -646,7 +703,7 @@ namespace Family_POC.Service
         /// 計算促銷組合價錢
         /// </summary>
         /// <returns></returns>
-        private async Task<IList<decimal>> GetPermutePrice(IList<IList<int>> countLists, PromotionMainDto promotionMainDto, List<GetPromotionPriceReq> req)
+        private async Task<IList<decimal>> GetPermutePrice(PromotionMainDto promotionMainDto, List<GetPromotionPriceReq> req)
         {
             IList<decimal> priceLists = new List<decimal>();
 
@@ -672,7 +729,7 @@ namespace Family_POC.Service
 
                             if (pmt45 != null) // 取得組合品促銷方案(固定組合)價錢
                             {
-                                permutePrice = pmt45.SalePrice * countLists[i][j];
+                                permutePrice = pmt45.SalePrice * _countLists[i][j];
 
                                 // 計算扣除組合促銷後的剩餘商品數量                        
                                 foreach (var permute in permuteDetail)
@@ -700,7 +757,7 @@ namespace Family_POC.Service
                                             permutePrice += firstMixPluMultipleDto.No_Vip_Saleprice;
                                         }
 
-                                        permutePrice = permutePrice * countLists[i][j]; // (價錢 * 組數)
+                                        permutePrice = permutePrice * _countLists[i][j]; // (價錢 * 組數)
                                     }
                                     else if (firstMixPluMultipleDto.P_Mode == "2" & multipleCountDtoList.Count > 0) // 折扣
                                     {
@@ -779,7 +836,7 @@ namespace Family_POC.Service
                                     {
                                         var pmt123Combo = pmt123.First().Combo.First();
                                         var reqPluno = copyReq.Where(x => x.Pluno == pmt123Combo.Pluno).First();
-                                        permutePrice = (decimal)(pmt123Combo.Saleoff * reqPluno.Price) * countLists[i][j]; // (價錢 * 組數)
+                                        permutePrice = (decimal)(pmt123Combo.Saleoff * reqPluno.Price) * _countLists[i][j]; // (價錢 * 組數)
 
                                         var promotion = copyReq.Where(x => x.Pluno == reqPluno.Pluno).First();
                                         promotion.Qty -= reqPluno.Qty;

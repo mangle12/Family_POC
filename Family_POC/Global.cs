@@ -15,3 +15,4 @@ global using Family_POC.Enum;
 global using Family_POC.Extension;
 global using Family_POC.Model.Request;
 global using Family_POC.Util;
+global using Family_POC.Model.Response;
