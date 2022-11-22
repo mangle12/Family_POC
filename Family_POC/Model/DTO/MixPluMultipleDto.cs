@@ -14,6 +14,8 @@
 
         public string P_Mode { get; set; }
 
+        public string Mix_Mode { get; set; }
+
         public decimal Mod_Qty { get; set; }
 
         public decimal No_Vip_Amount { get; set; }
