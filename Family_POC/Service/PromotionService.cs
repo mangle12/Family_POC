@@ -41,6 +41,16 @@ namespace Family_POC.Service
             var pmtList = await _dbService.GetAllAsync<PluDto>(@"SELECT plu_no,retailprice FROM fm_plu", new { });
 
             #region 促銷方案
+            var dataList = await _dbService.GetAllAsync<PromotionDataDto>(@"SELECT a_no, p_type, p_no, p_name, p_mode FROM fm_pmt
+                                                                    union all
+                                                                    SELECT a_no, p_type, p_no, p_name, p_mode FROM fm_mix_plu", new { });
+
+            // 促銷列表新增至Redis
+            await _cache.SetStringAsync("Promotion", JsonSerializer.Serialize(dataList));
+
+            #endregion
+
+            #region 各商品促銷方案
 
             foreach (var item in pmtList)
             {
@@ -165,7 +175,7 @@ namespace Family_POC.Service
                 #endregion
 
 
-                // 促銷表新增至Redis
+                // 商品促銷表新增至Redis
                 await _cache.SetStringAsync(item.Plu_No, JsonSerializer.Serialize(promotionMainDto));
             }
 
@@ -264,6 +274,20 @@ namespace Family_POC.Service
             sw.Stop();
             Console.WriteLine($"耗時 : {sw.ElapsedMilliseconds} 豪秒");
 
+            var getPromotionPriceResp = await GetOptimalSolution(req);
+
+            //var getPromotionPriceResp = new GetPromotionPriceResp();
+
+            return getPromotionPriceResp;
+        }
+
+        /// <summary>
+        /// 取得促銷方案最優解
+        /// </summary>
+        /// <param name="req"></param>
+        /// <returns></returns>
+        public async Task<GetPromotionPriceResp> GetOptimalSolution(List<GetPromotionPriceReq> req)
+        {
             var index = _priceList.IndexOf(_priceList.Min()); // 選出最優解(實際銷售金額最低金額)
             var permuteList = _permuteLists[index];
             var permuteDetailString = string.Empty;
@@ -288,13 +312,15 @@ namespace Family_POC.Service
 
                         var plunoList = productList.Where(x => x.Pluno == reqDetail.Pluno).ToList();
 
-                        pmt.Pmtno = permuteList[j];
-                        pmt.Pmtname = _mixPluMultipleDtoLists.SingleOrDefault(x => x.P_No == permuteList[j]).P_Name;
-                        pmt.Qty = plunoList.Count;
+                        var dataListString = await _cache.GetStringAsync("Promotion");
+                        var dataList = JsonSerializer.Deserialize<List<PromotionDataDto>>(dataListString);
 
+                        pmt.Pmtno = permuteList[j];
+                        pmt.Pmtname = dataList.SingleOrDefault(x => x.P_No == permuteList[j]).P_Name;
+                        pmt.Qty = plunoList.Count;
                     }
 
-                    if(pmt.Qty > 0)
+                    if (pmt.Qty > 0)
                         pmtList.Add(pmt);
                 }
 
@@ -303,14 +329,11 @@ namespace Family_POC.Service
                 pmtdetailList.Add(pmtdetailDto);
             }
 
-            // Response
-            var getPromotionPriceResp = new GetPromotionPriceResp() { 
+            return new GetPromotionPriceResp()
+            {
                 Totleprice = decimal.ToInt32(_priceList.Min()),
                 Pmtdetail = pmtdetailList,
             };
-
-
-            return getPromotionPriceResp;
         }
 
         private async Task GetPmtDetailOnRedis(List<GetPromotionPriceReq> req)
