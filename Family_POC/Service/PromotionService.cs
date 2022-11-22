@@ -588,24 +588,6 @@ namespace Family_POC.Service
                                         index++;
                                     }
 
-
-                                    //for (int c = 0; c < mixPluMultipleDto.Mod_Qty; c++)
-                                    //{
-                                    //    subProductList.Add(new GetPromotionPriceReq
-                                    //    {
-                                    //        Pluno = promotionList[index],
-                                    //        Qty = 1,
-                                    //        Price = copyReq.Where(x => x.Pluno == promotionList[index]).First().Price,
-                                    //    });
-
-                                    //    var promotion = copyReq.Where(x => x.Pluno == promotionList[index]).First();
-                                    //    promotion.Qty = promotion.Qty - 1;
-
-                                    //    index++;
-                                    //}
-
-                                    //sumCount -= mixPluMultipleDto.Mod_Qty;
-
                                     // 增加促銷組數 
                                     promotionMultiCount += decimal.ToInt32(result);
                                 }                                                                                                    
