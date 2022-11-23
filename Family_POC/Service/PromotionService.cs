@@ -407,7 +407,7 @@ namespace Family_POC.Service
                         }
                         else if (promotionDto.Mix_Mode == "2") // 變動分量組合
                         {
-                            var containRow45 = promotionDto.Combo.Where(x => inputPmtList.Contains(x.Pluno)); // 搜尋出不在此次input的商品編號
+                            var containRow45 = promotionDto.Combo.Where(x => inputPmtList.Contains(x.Pluno)); // 搜尋包含input的商品編號
 
                             if (containRow45.Any())
                             {
@@ -421,8 +421,13 @@ namespace Family_POC.Service
                         }
                         else if (promotionDto.Mix_Mode == "4") // 增量折扣
                         {
-                            var mixPluMultipleDto = JsonSerializer.Deserialize<List<MixPluMultipleDto>>(await _cache.GetStringAsync(promotionDto.P_Key));
-                            _mixPluMultipleDtoLists.AddRange(mixPluMultipleDto);
+                            var containRow45 = promotionDto.Combo.Where(x => inputPmtList.Contains(x.Pluno)); // 搜尋包含input的商品編號
+
+                            if (containRow45.Any())
+                            {
+                                var mixPluMultipleDto = JsonSerializer.Deserialize<List<MixPluMultipleDto>>(await _cache.GetStringAsync(promotionDto.P_Key));
+                                _mixPluMultipleDtoLists.AddRange(mixPluMultipleDto);
+                            }
                         }
                     }
                     else if (promotionDto.P_Type == PromotionType.Matching.Value()) // 配對搭贈
