@@ -8,6 +8,8 @@
 
         public string P_No { get; set; }
 
+        public string P_Name { get; set; }
+
         public string P_Mode { get; set; }
 
         public string Mix_Mode { get; set; }

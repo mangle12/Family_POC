@@ -30,11 +30,11 @@ namespace Family_POC.Controllers
         /// </summary>
         /// <returns></returns>
         [HttpPost("GetPromotionPrice")]
-        public async Task<IActionResult> GetPromotionPrice(List<GetPromotionPriceReq> req)
+        public async Task<ResponseResult<GetPromotionPriceResp>> GetPromotionPrice(List<GetPromotionPriceReq> req)
         {
-            await _promotionService.GetPromotionPriceAsync(req);
+            var result = await _promotionService.GetPromotionPriceAsync(req);
 
-            return Ok();
+            return SuccessResult(result);
         }
 
     }

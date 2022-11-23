@@ -1,6 +1,6 @@
 ﻿namespace Family_POC.Model.DTO
 {
-    public class PromotionFromPmtPluDetailDto
+    public class PromotionDataDto
     {
         public string A_No { get; set; }
 
@@ -10,10 +10,8 @@
 
         public string P_Name { get; set; }
 
-        public string Pluno { get; set; }
+        public string P_Mode { get; set; }
 
-        public decimal No_Vip_Saleoff { get; set; }
-
-        public decimal Qty { get; set; }
+        public string Is_Same_Plu { get; set; }
     }
 }

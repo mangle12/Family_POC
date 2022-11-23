@@ -8,7 +8,11 @@
 
         public string P_No { get; set; }
 
+        public string P_Name { get; set; }
+
         public string P_Mode { get; set; }
+
+        public string Is_Same_Plu { get; set; }
 
         public string Plu_Type { get; set; }
 

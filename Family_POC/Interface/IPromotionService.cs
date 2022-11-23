@@ -4,6 +4,6 @@
     {
         public Task GetPromotionToRedisAsync();
 
-        public Task GetPromotionPriceAsync(List<GetPromotionPriceReq> req);
+        public Task<GetPromotionPriceResp> GetPromotionPriceAsync(List<GetPromotionPriceReq> req);
     }
 }
