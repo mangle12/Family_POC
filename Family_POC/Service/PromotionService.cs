@@ -870,7 +870,7 @@ namespace Family_POC.Service
                         {
                             var permuteDetail = _productListsDict[$"{i}_{j}"]; // 促銷組合品項明細
 
-                            if (pmt45 != null) // 取得組合品促銷方案(固定組合)價錢
+                            if (pmt45 != null) // 取得組合品促銷方案(固定組合 mix_mode=1)價錢
                             {
                                 permutePrice = pmt45.SalePrice * _countLists[i][j];
 
@@ -881,7 +881,7 @@ namespace Family_POC.Service
                                     promotion.Qty -= permute.Qty;
                                 }
                             }
-                            else
+                            else // mix_mode!=1
                             {
                                 var mixPluMultipleDtoList = _mixPluMultipleDtoLists.Where(x => x.P_No == _permuteLists[i][j]).ToList();
 
