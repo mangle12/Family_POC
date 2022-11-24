@@ -710,12 +710,13 @@ namespace Family_POC.Service
                                                         });
                                                     }
 
-                                                    sumCount -= currentPromotion.Qty;
                                                     promotion.Qty = currentPromotion.Qty % mixPluMultipleDto.Mod_Qty;
 
                                                     // 增加促銷組數 
                                                     promotionMultiCount += decimal.ToInt32(mathResult);
                                                 }
+
+                                                sumCount -= currentPromotion.Qty;
                                             }
                                         }
                                         else if (mixPluMultipleDto.Is_Same_Plu == "N") // 2:不同品項
