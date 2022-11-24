@@ -694,12 +694,13 @@ namespace Family_POC.Service
                                                         await SubProductListAddProd(ref subProductList, promotion.Pluno, 1, promotion.Price);
                                                     }
 
-                                                    sumCount -= promotion.Qty;
-                                                    reqPluno.Qty = promotion.Qty % mixPluMultipleDto.Mod_Qty;
+                                                    promotion.Qty = promotion.Qty % mixPluMultipleDto.Mod_Qty;
 
                                                     // 增加促銷組數 
                                                     promotionMultiCount += decimal.ToInt32(mathResult);
                                                 }
+
+                                                sumCount -= promotion.Qty;
                                             }
                                         }
                                         else if (mixPluMultipleDto.Is_Same_Plu == "N") // 2:不同品項
