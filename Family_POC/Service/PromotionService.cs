@@ -9,14 +9,14 @@ namespace Family_POC.Service
     {
         private readonly IDistributedCache _cache;
         private readonly IDbService _dbService;
-        private static decimal _totalPrice; // 此次購買商品原總價
-        private static IList<IList<string>> _permuteLists; // 符合促銷排列組合
-        private static IList<decimal> _priceList; // 促銷計算後價格
-        private static IList<IList<int>> _countLists; // 促銷數量
-        private static List<MixPluMultipleDto> _mixPluMultipleDtoLists; // 促銷變動分量組合
-        private static Dictionary<string, List<MultipleCountDto>> _multipleCountDict; // 促銷變動分量組合組數
-        private static Dictionary<string, List<GetPromotionPriceReq>> _productListsDict; // 促銷品項組合
-        private static Dictionary<string, List<GetPromotionPriceReq>> _remainProductListsDict; // 剩餘品項組合
+        private decimal _totalPrice; // 此次購買商品原總價
+        private IList<IList<string>> _permuteLists; // 符合促銷排列組合
+        private IList<decimal> _priceList; // 促銷計算後價格
+        private IList<IList<int>> _countLists; // 促銷數量
+        private List<MixPluMultipleDto> _mixPluMultipleDtoLists; // 促銷變動分量組合
+        private Dictionary<string, List<MultipleCountDto>> _multipleCountDict; // 促銷變動分量組合組數
+        private Dictionary<string, List<GetPromotionPriceReq>> _productListsDict; // 促銷品項組合
+        private Dictionary<string, List<GetPromotionPriceReq>> _remainProductListsDict; // 剩餘品項組合
 
         public PromotionService(IDistributedCache cache, IDbService dbService)
         {
@@ -272,11 +272,10 @@ namespace Family_POC.Service
             await GetPmtDetailOnRedis(req);
 
             sw.Stop();
-            Console.WriteLine($@"耗時 : {sw.ElapsedMilliseconds} 豪秒");
-
-            Console.WriteLine("-----------------------------------------");
-
+            
             var getPromotionPriceResp = await GetOptimalSolution(req);
+
+            Console.WriteLine($"耗時 : {sw.ElapsedMilliseconds} 豪秒");
 
             return getPromotionPriceResp;
         }
@@ -483,7 +482,7 @@ namespace Family_POC.Service
         /// <param name="permuteLists">促銷排列組合</param>
         /// <param name="countLists">促銷組數</param>
         /// <param name="req">Request Input</param>
-        private static void PrintResult(List<GetPromotionPriceReq> req)
+        private void PrintResult(List<GetPromotionPriceReq> req)
         {
             Console.WriteLine("");
 
