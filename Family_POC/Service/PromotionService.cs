@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.DataProtection.KeyManagement;
 using System.Diagnostics;
 using System.Linq;
+using System.Numerics;
 
 namespace Family_POC.Service
 {
@@ -300,6 +301,7 @@ namespace Family_POC.Service
                 var index = _priceList.IndexOf(_priceList.Min()); // 選出最優解(實際銷售金額最低金額)
                 var permuteList = _permuteLists[index];
                 var permuteDetailString = string.Empty;
+                var tempPmtDtoList = new List<TempPmtDto>();
 
                 foreach (var reqPluno in req)
                 {
@@ -309,49 +311,88 @@ namespace Family_POC.Service
 
                     var pmtList = new List<PmtDto>();
 
-                    for (int j = 0; j < permuteList.Count; j++)
+                    if (tempPmtDtoList.Count(x => x.Pluno == reqPluno.Pluno) > 0)
                     {
-                        if (_productListsDict.ContainsKey($"{index}_{j}"))
+                        var tempPmtDto = tempPmtDtoList.Where(x => x.Pluno == reqPluno.Pluno).ToList();
+
+                        for (int c = 0; c < reqPluno.Qty; c++)
                         {
-                            var productList = _productListsDict[$"{index}_{j}"];
-                            var aa = _countLists[index][j];
-
-                            if (productList.Count == 0)
-                                continue;
-
-                            var plunoList = productList.Where(x => x.Pluno == reqPluno.Pluno).ToList();
-                            var permutePrice = _permutePriceListsDict[$"{index}_{j}"]; // 促銷組合售價
-
-                            // 判斷每個品號的促銷價格加總是否等於最終促銷價格
-                            if (productList.Sum(x => x.SalePrice) < permutePrice)
+                            pmtList.Add(new PmtDto()
                             {
-                                var maxPrice = productList.Max(x => x.Price); // 取得單品金額最大項
-
-                                var pluno = productList.Where(x => x.Price == maxPrice).First();
-                                pluno.SalePrice = pluno.SalePrice + (permutePrice - productList.Sum(x => x.SalePrice)); // 將剩餘金額加入到金額最大的單品
-                            }
-
-                            pmtdetailDto.Saleprice += decimal.ToInt32(plunoList.Sum(x => x.SalePrice));
-
-                            // 促銷資料
-                            var dataListString = await _cache.GetStringAsync("Promotion");
-                            var dataList = JsonSerializer.Deserialize<List<PromotionDataDto>>(dataListString);
-                            var pmtName = dataList.SingleOrDefault(x => x.P_No == permuteList[j]).P_Name;
-
-                            foreach (var pluno in plunoList)
+                                Pmtno = tempPmtDto[c].Pmtno,
+                                Pmtname = tempPmtDto[c].Pmtname,
+                                Qty = tempPmtDto[c].Qty,
+                                Discount = tempPmtDto[c].Discount,
+                                Disrate = tempPmtDto[c].Disrate,
+                            });
+                        }
+                    }
+                    else
+                    {
+                        for (int j = 0; j < permuteList.Count; j++)
+                        {
+                            if (_productListsDict.ContainsKey($"{index}_{j}"))
                             {
-                                var pmt = new PmtDto();
-                                pmt.Pmtno = permuteList[j];
-                                pmt.Pmtname = pmtName;
-                                pmt.Qty = decimal.ToInt32(pluno.Qty);
-                                pmt.Discount = decimal.ToInt32(pluno.Price - pluno.SalePrice > 0 ? pluno.Price - pluno.SalePrice : 0);
-                                pmt.Disrate = pmt.Discount > 0 ? Math.Round(pluno.SalePrice / pluno.Price, 2) : 0; // 折扣率(四捨五入到小數點第二位)
+                                var productList = _productListsDict[$"{index}_{j}"];
 
-                                pmtList.Add(pmt);
+                                if (productList.Count == 0)
+                                    continue;
+
+                                var plunoList = productList.Where(x => x.Pluno == reqPluno.Pluno).ToList();
+                                var permutePrice = _permutePriceListsDict[$"{index}_{j}"]; // 促銷組合售價/組數 = 單一促銷售價
+
+                                // 判斷每個品號的促銷價格加總是否等於最終促銷價格
+                                if (productList.Sum(x => x.SalePrice) < permutePrice)
+                                {
+                                    var maxPrice = productList.Max(x => x.Price); // 取得單品金額最大項
+
+                                    var remainderPrice = (permutePrice - productList.Sum(x => x.SalePrice)) / _countLists[index][j]; // 若有剩餘金額則攤平到各項目
+
+                                    for (int v = 0; v < _countLists[index][j]; v++)
+                                    {
+                                        plunoList[v].SalePrice = plunoList[v].SalePrice + remainderPrice;
+                                    }
+                                }
+
+                                // 促銷資料
+                                var dataListString = await _cache.GetStringAsync("Promotion");
+                                var dataList = JsonSerializer.Deserialize<List<PromotionDataDto>>(dataListString);
+                                var pmtName = dataList.SingleOrDefault(x => x.P_No == permuteList[j]).P_Name;
+
+                                foreach (var pluno in plunoList)
+                                {
+                                    var pmt = new PmtDto();
+                                    pmt.Pmtno = permuteList[j];
+                                    pmt.Pmtname = pmtName;
+                                    pmt.Qty = decimal.ToInt32(pluno.Qty);
+                                    pmt.Discount = decimal.ToInt32(pluno.Price - pluno.SalePrice > 0 ? pluno.Price - pluno.SalePrice : 0);
+                                    pmt.Disrate = pmt.Discount > 0 ? Math.Round(pluno.SalePrice / pluno.Price, 2) : 0; // 折扣率(四捨五入到小數點第二位)
+
+                                    if (pmtList.Count < reqPluno.Qty)
+                                    {
+                                        pmtList.Add(pmt);
+                                    }
+                                    else
+                                    {
+                                        // 多於組數加入到暫存
+                                        var tempPmtDto = new TempPmtDto()
+                                        {
+                                            Pluno = reqPluno.Pluno,
+                                            Pmtno = pmt.Pmtno,
+                                            Pmtname = pmt.Pmtname,
+                                            Qty = pmt.Qty,
+                                            Discount = pmt.Discount,
+                                            Disrate = pmt.Disrate
+                                        };
+                                        tempPmtDto.Pluno = reqPluno.Pluno;
+
+                                        tempPmtDtoList.Add(tempPmtDto);
+                                    }
+                                }                                
                             }
                         }
                     }
-
+                    pmtdetailDto.Saleprice = reqPluno.Qty * reqPluno.Price - pmtList.Sum(x => x.Discount);
                     pmtdetailDto.Pmt = pmtList;
 
                     pmtdetailList.Add(pmtdetailDto);
