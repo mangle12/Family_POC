@@ -2,7 +2,7 @@
 {
     public class GetPromotionPriceResp
     {
-        public decimal Totleprice { get; set; }
+        public decimal Totalprice { get; set; }
 
         public List<PmtdetailDto> Pmtdetail { get; set; }
     }

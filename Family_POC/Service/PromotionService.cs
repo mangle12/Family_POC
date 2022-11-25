@@ -349,7 +349,7 @@ namespace Family_POC.Service
 
             return new GetPromotionPriceResp()
             {
-                Totleprice = decimal.ToInt32(resultPrice),
+                Totalprice = decimal.ToInt32(resultPrice),
                 Pmtdetail = pmtdetailList,
             };
         }
