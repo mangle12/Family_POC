@@ -308,9 +308,7 @@ namespace Family_POC.Service
                     var pmtList = new List<PmtDto>();
 
                     for (int j = 0; j < permuteList.Count; j++)
-                    {
-                        var pmt = new PmtDto();
-
+                    {                        
                         if (_productListsDict.ContainsKey($"{index}_{j}"))
                         {
                             var productList = _productListsDict[$"{index}_{j}"];
@@ -319,14 +317,18 @@ namespace Family_POC.Service
 
                             var dataListString = await _cache.GetStringAsync("Promotion");
                             var dataList = JsonSerializer.Deserialize<List<PromotionDataDto>>(dataListString);
+                            var pmtName = dataList.SingleOrDefault(x => x.P_No == permuteList[j]).P_Name;
 
-                            pmt.Pmtno = permuteList[j];
-                            pmt.Pmtname = dataList.SingleOrDefault(x => x.P_No == permuteList[j]).P_Name;
-                            pmt.Qty = plunoList.Count;
-                        }
+                            foreach (var pluno in plunoList)
+                            {
+                                var pmt = new PmtDto();
+                                pmt.Pmtno = permuteList[j];
+                                pmt.Pmtname = pmtName;
+                                pmt.Qty = pluno.Qty;
 
-                        if (pmt.Qty > 0)
-                            pmtList.Add(pmt);
+                                pmtList.Add(pmt);
+                            }                            
+                        }                                                    
                     }
 
                     pmtdetailDto.Pmt = pmtList;
@@ -709,13 +711,16 @@ namespace Family_POC.Service
                                                         });
                                                     }
 
+                                                    sumCount -= currentPromotion.Qty;
                                                     promotion.Qty = currentPromotion.Qty % mixPluMultipleDto.Mod_Qty;
 
                                                     // 增加促銷組數 
                                                     promotionMultiCount += decimal.ToInt32(mathResult);
                                                 }
-
-                                                sumCount -= currentPromotion.Qty;
+                                                else
+                                                {
+                                                    sumCount -= currentPromotion.Qty;
+                                                }                                                
                                             }
                                         }
                                         else if (mixPluMultipleDto.Is_Same_Plu == "N") // 2:不同品項
