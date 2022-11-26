@@ -1,5 +1,6 @@
 ﻿using Family_POC.Model.DTO;
 using Microsoft.AspNetCore.DataProtection.KeyManagement;
+using System;
 using System.Diagnostics;
 using System.Linq;
 using System.Numerics;
@@ -303,6 +304,9 @@ namespace Family_POC.Service
                 var permuteDetailString = string.Empty;
                 var tempPmtDtoList = new List<TempPmtDto>();
 
+                // 取得符合促銷的全部品項
+                var permuteProductList = await GetAllPermuteProductList(permuteList, index);
+
                 foreach (var reqPluno in req)
                 {
                     var pmtdetailDto = new PmtdetailDto();
@@ -325,17 +329,21 @@ namespace Family_POC.Service
                                 Discount = tempPmtDto[c].Discount,
                                 Disrate = tempPmtDto[c].Disrate,
                             });
+
+                            var promotion = permuteProductList.Where(x => x.Pluno == reqPluno.Pluno).First();
+                            promotion.Qty -= 1;
                         }
                     }
                     else
-                    {
+                    {                       
                         for (int j = 0; j < permuteList.Count; j++)
                         {
                             if (_productListsDict.ContainsKey($"{index}_{j}"))
                             {
                                 var productList = _productListsDict[$"{index}_{j}"];
+                                var promotionQty = permuteProductList.Where(x => x.Pluno == reqPluno.Pluno).Sum(y=>y.Qty);
 
-                                if (productList.Count == 0)
+                                if (productList.Count == 0 || promotionQty == 0) //如果促銷名細為0或是剩下的促銷明細沒有該品號跳過
                                     continue;
 
                                 var plunoList = productList.Where(x => x.Pluno == reqPluno.Pluno).ToList();
@@ -371,6 +379,8 @@ namespace Family_POC.Service
                                     if (pmtList.Count < reqPluno.Qty)
                                     {
                                         pmtList.Add(pmt);
+                                        var promotion = permuteProductList.Where(x => x.Pluno == reqPluno.Pluno).First();
+                                        promotion.Qty -= 1;
                                     }
                                     else
                                     {
@@ -1150,6 +1160,25 @@ namespace Family_POC.Service
             });
 
             return Task.FromResult(multipleCountDtoList);
+        }
+
+        private async Task<List<ProductDetailDto>> GetAllPermuteProductList(IList<string> permuteList, int index)
+        {
+            var productDetailList = new List<ProductDetailDto>();
+            for (int j = 0; j < permuteList.Count; j++)
+            {
+                if (_productListsDict.ContainsKey($"{index}_{j}"))
+                {
+                    var productList = _productListsDict[$"{index}_{j}"];
+
+                    if (productList.Count == 0)
+                        continue;
+
+                    productDetailList.AddRange(productList);
+                }
+            }
+
+            return productDetailList;
         }
     }
 }
