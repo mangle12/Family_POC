@@ -4,6 +4,7 @@ using System;
 using System.Diagnostics;
 using System.Linq;
 using System.Numerics;
+using System.Reflection;
 
 namespace Family_POC.Service
 {
@@ -358,6 +359,9 @@ namespace Family_POC.Service
 
                                     for (int v = 0; v < _countLists[index][j]; v++)
                                     {
+                                        if (plunoList.Count <= v) // 防止相同單品折扣出錯
+                                            break;
+                                        
                                         plunoList[v].SalePrice = plunoList[v].SalePrice + remainderPrice;
                                     }
                                 }
@@ -854,6 +858,7 @@ namespace Family_POC.Service
                 // 若input商品還有剩，則計算單品促銷(Pmt123)
                 if (copyReq.Select(x => x.Qty).Any(y => y > 0))
                 {
+                    var subProductList = new List<ProductDetailDto>(); // 促銷品號明細
                     var remainProductList = new List<GetPromotionPriceReq>();
 
                     foreach (var item in copyReq)
@@ -868,20 +873,32 @@ namespace Family_POC.Service
                             remainProductList.Add(item);
                             continue;
                         }
-
-                        // 符合單品促銷
-                        var promotion123Count = 0; // 單品促銷組數
-                        var pmt123Combo = pmt123.Combo.First();
-
-                        while (item.Qty > 0)
+                        else
                         {
-                            item.Qty -= pmt123Combo.Qty;
-                            promotion123Count++;
+                            var pmt123DtoList = promotionMainDto.Pmt123.Where(x => x.P_Type == pmt123.P_Type).ToList();
+                            var comboList = new List<ComboDto>();
+
+                            foreach (var pmt123Dto in pmt123DtoList)
+                            {
+                                comboList.AddRange(pmt123Dto.Combo);
+                            }
+
+                            // 符合單品促銷
+                            var promotion123Count = comboList.Sum(x => x.Qty); // 單品促銷組數
+
+                            foreach (var combo in comboList)
+                            {
+                                var promotion = copyReq.Where(x => x.Pluno == combo.Pluno).FirstOrDefault();
+                                promotion.Qty -= combo.Qty;
+
+                                await SubProductListAddProd(ref subProductList, combo.Pluno, combo.Qty, promotion.Price);
+                            }
+
+                            promotionCountList.Add(decimal.ToInt32(promotion123Count));
                         }
-
-                        promotionCountList.Add(promotion123Count);
                     }
-
+                    
+                    _productListsDict.Add($"{_productListsDict.Count}_{0}", subProductList); // 記錄此促銷扣除的品號及數量
                     _remainProductListsDict.Add($"{i}", remainProductList);
                 }
 
@@ -912,13 +929,13 @@ namespace Family_POC.Service
 
                     for (int j = 0; j < _permuteLists[i].Count; j++)
                     {
+                        var permuteDetail = _productListsDict[$"{i}_{j}"]; // 促銷組合品項明細
                         var pmt45 = promotionMainDto.Pmt45.Where(x => x.P_No == _permuteLists[i][j]).FirstOrDefault();
                         decimal permutePrice = 0;
 
                         if (_productListsDict.ContainsKey($"{i}_{j}"))
                         {
-                            var permuteDetail = _productListsDict[$"{i}_{j}"]; // 促銷組合品項明細
-
+                            
                             if (pmt45 != null) // 取得組合品促銷方案(固定組合 mix_mode=1)價錢
                             {
                                 permutePrice = pmt45.SalePrice * _countLists[i][j];
@@ -976,6 +993,7 @@ namespace Family_POC.Service
 
                                                     var promotion = copyReq.Where(x => x.Pluno == permute.Pluno).First();
                                                     promotion.Qty -= permute.Qty;
+                                                    permute.SalePrice = permute.Price * mixPluMultipleDto.No_Vip_Saleoff;
                                                 }
 
                                                 tempPrice += Math.Floor(totalPrice * mixPluMultipleDto.No_Vip_Saleoff); // 折扣價格 (總金額 * 折扣率) 採用無條件捨去
@@ -991,11 +1009,14 @@ namespace Family_POC.Service
 
                                                     if ((index % mixPluMultipleDto.Mod_Qty) == 0) // 餘數為0表示為第n件需計算折扣
                                                     {
-                                                        tempPrice += Math.Floor(permute.Price * mixPluMultipleDto.No_Vip_Saleoff); // 第n件n折 ( 商品價錢 * 折扣%數 ) 採用無條件捨去
+                                                        var mathResult = Math.Floor(permute.Price * mixPluMultipleDto.No_Vip_Saleoff);
+                                                        tempPrice += mathResult; // 第n件n折 ( 商品價錢 * 折扣%數 ) 採用無條件捨去
+                                                        permute.SalePrice = mathResult;
                                                     }
                                                     else
                                                     {
                                                         tempPrice += permute.Price;
+                                                        permute.SalePrice = permute.Price;
                                                     }
                                                 }
                                             }
@@ -1045,8 +1066,12 @@ namespace Family_POC.Service
                                         var reqPluno = copyReq.Where(x => x.Pluno == pmt123Combo.Pluno).First();
                                         permutePrice = (decimal)(pmt123Combo.Saleoff * reqPluno.Price) * _countLists[i][j]; // (價錢 * 組數)
 
-                                        var promotion = copyReq.Where(x => x.Pluno == reqPluno.Pluno).First();
-                                        promotion.Qty -= reqPluno.Qty;
+                                        foreach (var permute in permuteDetail)
+                                        {
+                                            var promotion = copyReq.Where(x => x.Pluno == reqPluno.Pluno).First();
+                                            promotion.Qty -= permute.Qty;
+                                            permute.SalePrice = (decimal)(pmt123Combo.Saleoff * promotion.Price) * permute.Qty;
+                                        }
                                     }
                                 }
                             }
