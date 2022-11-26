@@ -377,8 +377,8 @@ namespace Family_POC.Service
                                     pmt.Pmtno = permuteList[j];
                                     pmt.Pmtname = pmtName;
                                     pmt.Qty = decimal.ToInt32(pluno.Qty);
-                                    pmt.Discount = decimal.ToInt32(pluno.Price - pluno.SalePrice > 0 ? pluno.Price - pluno.SalePrice : 0);
-                                    pmt.Disrate = pmt.Discount > 0 ? Math.Round(pluno.SalePrice / pluno.Price, 2) : 0; // 折扣率(四捨五入到小數點第二位)
+                                    pmt.Discount = decimal.ToInt32((pluno.Price * pluno.Qty) - pluno.SalePrice > 0 ? (pluno.Price * pluno.Qty) - pluno.SalePrice : 0);
+                                    pmt.Disrate = pmt.Discount > 0 ? Math.Round(pluno.SalePrice / (pluno.Price * pluno.Qty), 2) : 0; // 折扣率(四捨五入到小數點第二位)
 
                                     if (pmtList.Count < reqPluno.Qty)
                                     {
@@ -528,6 +528,7 @@ namespace Family_POC.Service
                     // 如果同品號有兩種單品促銷以上，選擇折扣率最大的單品促銷
                     var firstCombo = redisPromotionDto.Pmt123.Select(x => x.Combo.First()).OrderBy(y => y.Saleoff).First(); // 取得最大則扣率的Combo ( **每個PromotionDto只會有一個Combo** )
                     var firstPromotionDto = redisPromotionDto.Pmt123.Where(x => x.Combo.First() == firstCombo).First(); // 依據最大則扣率的Combo取得該筆PromotionDto
+                    firstCombo.Qty = item.Qty;
 
                     var noContainRow123 = firstPromotionDto.Combo.Where(x => !inputPmtList.Contains(x.Pluno)); // 搜尋出不在此次input的商品編號
                     if (!noContainRow123.Any())
