@@ -293,7 +293,6 @@ namespace Family_POC.Service
         public async Task<GetPromotionPriceResp> GetOptimalSolution(List<GetPromotionPriceReq> req)
         {
             decimal resultPrice = 0;
-            //var copeReq = await GetInputReq(req);
             var pmtdetailList = new List<PmtdetailDto>();
 
             if (_permuteLists.Count > 0)
@@ -991,7 +990,7 @@ namespace Family_POC.Service
 
                                                     var promotion = copyReq.Where(x => x.Pluno == permute.Pluno).First();
                                                     promotion.Qty -= permute.Qty;
-                                                    permute.SalePrice = permute.Price * mixPluMultipleDto.No_Vip_Saleoff;
+                                                    permute.SalePrice = Math.Floor(permute.Price * mixPluMultipleDto.No_Vip_Saleoff); // 折扣價格,採用無條件捨去
                                                 }
 
                                                 tempPrice += Math.Floor(totalPrice * mixPluMultipleDto.No_Vip_Saleoff); // 折扣價格 (總金額 * 折扣率) 採用無條件捨去
@@ -1062,13 +1061,13 @@ namespace Family_POC.Service
                                     {
                                         var pmt123Combo = pmt123.First().Combo.First();
                                         var reqPluno = copyReq.Where(x => x.Pluno == pmt123Combo.Pluno).First();
-                                        permutePrice = (decimal)(pmt123Combo.Saleoff * reqPluno.Price) * _countLists[i][j]; // (價錢 * 組數)
+                                        permutePrice = Math.Floor((decimal)(pmt123Combo.Saleoff * reqPluno.Price)) * _countLists[i][j]; // (價錢 * 組數)
 
                                         foreach (var permute in permuteDetail)
                                         {
                                             var promotion = copyReq.Where(x => x.Pluno == reqPluno.Pluno).First();
                                             promotion.Qty -= permute.Qty;
-                                            permute.SalePrice = (decimal)(pmt123Combo.Saleoff * promotion.Price) * permute.Qty;
+                                            permute.SalePrice = Math.Floor((decimal)(pmt123Combo.Saleoff * promotion.Price)) * permute.Qty;
                                         }
                                     }
                                 }
