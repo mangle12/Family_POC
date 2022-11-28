@@ -358,10 +358,10 @@ namespace Family_POC.Service
 
                                     for (int v = 0; v < _countLists[index][j]; v++)
                                     {
-                                        if (plunoList.Count <= v) // 防止相同單品折扣出錯
-                                            break;
-                                        
-                                        plunoList[v].SalePrice = plunoList[v].SalePrice + remainderPrice;
+                                        //if (plunoList.Count <= v) // 防止相同單品折扣出錯
+                                        //    break;
+
+                                        productList[v].SalePrice = productList[v].SalePrice + remainderPrice;
                                     }
                                 }
 
