@@ -942,7 +942,7 @@ namespace Family_POC.Service
                                     var promotion = copyReq.Where(x => x.Pluno == permute.Pluno).First();
                                     promotion.Qty -= permute.Qty;
                                     permute.SalePrice = Math.Floor(permutePrice * promotion.Price / permuteDetail.Sum(x => x.Price * x.Qty));
-                                }                                
+                                }
                             }
                             else // mix_mode!=1
                             {
@@ -1098,9 +1098,6 @@ namespace Family_POC.Service
                         }
                     }
 
-                    //if (discountPrice > 0) 
-                    //    salePrice -= discountPrice; // 總金額 - 折價金額
-
                     priceLists.Add(salePrice);
                 }
             }
@@ -1191,7 +1188,7 @@ namespace Family_POC.Service
             return Task.FromResult(multipleCountDtoList);
         }
 
-        private async Task<List<ProductDetailDto>> GetAllPermuteProductList(IList<string> permuteList, int index)
+        private Task<List<ProductDetailDto>> GetAllPermuteProductList(IList<string> permuteList, int index)
         {
             var productDetailList = new List<ProductDetailDto>();
             for (int j = 0; j < permuteList.Count; j++)
@@ -1207,7 +1204,7 @@ namespace Family_POC.Service
                 }
             }
 
-            return productDetailList;
+            return Task.FromResult(productDetailList);
         }
     }
 }
