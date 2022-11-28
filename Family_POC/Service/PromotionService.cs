@@ -920,7 +920,6 @@ namespace Family_POC.Service
                 for (int i = 0; i < _permuteLists.Count; i++)
                 {
                     decimal salePrice = 0; // 實際銷售金額
-                    decimal discountPrice = 0; // 折價金額
 
                     // 複製req當作計算扣除組合促銷後的剩餘商品數量
                     var copyReq = await GetInputReq(req);
@@ -1024,6 +1023,7 @@ namespace Family_POC.Service
                                     else if (firstMixPluMultipleDto.P_Mode == "3" & multipleCountDtoList.Count > 0) // 折價
                                     {
                                         decimal discount = 0; //變動分量組合折價金額
+                                        decimal discountPrice = 0; // 折價金額
 
                                         var minModQty = mixPluMultipleDtoList[^1].Mod_Qty; //最小組數
                                         var sumCount = permuteDetail.Sum(x => x.Qty);
@@ -1045,12 +1045,19 @@ namespace Family_POC.Service
                                                     sumCount = sumCount % mixPluMultipleDto.Mod_Qty; // 剩餘商品數量
 
                                                     discountPrice += discount * result; // 總折價價格 (折價價格 * 符合組數)
+
+                                                    // 計算促銷後的商品價格                      
+                                                    foreach (var permute in permuteDetail)
+                                                    {
+                                                        var promotion = copyReq.Where(x => x.Pluno == permute.Pluno).First();
+                                                        permute.SalePrice = Math.Floor(promotion.Price - discountPrice / permuteDetail.Sum(x=>x.Qty));
+                                                    }
                                                 }
                                             }
                                         }
 
                                         // 計算促銷金額
-                                        permutePrice = permuteDetail.Sum(x => x.Price * x.Qty);
+                                        permutePrice = permuteDetail.Sum(x => x.Price * x.Qty) - discountPrice;
                                     }
                                 }
                                 else
@@ -1091,8 +1098,8 @@ namespace Family_POC.Service
                         }
                     }
 
-                    if (discountPrice > 0) 
-                        salePrice -= discountPrice; // 總金額 - 折價金額
+                    //if (discountPrice > 0) 
+                    //    salePrice -= discountPrice; // 總金額 - 折價金額
 
                     priceLists.Add(salePrice);
                 }
