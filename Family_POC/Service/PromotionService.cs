@@ -915,6 +915,10 @@ namespace Family_POC.Service
                                                             break;
                                                         }
                                                     }
+                                                    else
+                                                    {
+                                                        sumCount = sumCount - promotion.Qty;
+                                                    }
                                                 }
                                             }
                                         }
