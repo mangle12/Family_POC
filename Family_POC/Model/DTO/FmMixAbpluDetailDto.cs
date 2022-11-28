@@ -12,8 +12,6 @@
 
         public string P_Mode { get; set; }
 
-        public string Plu_Type { get; set; }
-
         public List<AbpluDetailDto> Detail { get; set; }
     }
 
@@ -29,5 +27,7 @@
         public string Remark { get; set; }
 
         public decimal Ratio { get; set; }
+
+        public string Plu_Type { get; set; }
     }
 }
