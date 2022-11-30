@@ -881,10 +881,11 @@ namespace Family_POC.Service
                                         {
                                             foreach (var promotion in curPromotionList)
                                             {
+                                                var promotionNumber = promotion.Qty;
                                                 var reqPluno = copyReq.Where(x => x.Pluno == promotion.Pluno).First(); // 主要商品
                                                 var ortherReqPlunoList = copyReq.Where(x => x.Pluno != promotion.Pluno).ToList(); // 搭配商品列表
 
-                                                for (int c = 0; c < promotion.Qty; c++)
+                                                for (int c = 0; c < promotionNumber; c++)
                                                 {
                                                     if (1 + ortherReqPlunoList.Sum(x => x.Qty) >= mixPluMultipleDto.Mod_Qty) // 主要商品1個 + 搭配商品總數量 > 最低組數
                                                     {
