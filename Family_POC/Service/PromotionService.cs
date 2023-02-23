@@ -104,7 +104,7 @@ namespace Family_POC.Service
                         new { Ano = mixPluDetailPK.A_No, Ptype = mixPluDetailPK.P_Type, Pno = mixPluDetailPK.P_No });
 
                     // 利用主鍵搜尋組合商品明細檔
-                    var mixPluDetailList = await _dbService.GetAllAsync<PromotionFromPmtPluDetailDto>(@"SELECT d.a_no, d.p_type, d.p_no, p.p_name, d.pluno, d.qty FROM fm_mix_plu_detail d
+                    var mixPluDetailList = await _dbService.GetAllAsync<PromotionFromPmtPluDetailDto>(@"SELECT d.a_no, d.p_type, d.p_no, p.p_name, d.pluno, d.qty, d.match, d.group FROM fm_mix_plu_detail d
                                                                                                         inner join fm_mix_plu p on p.p_no = d.p_no where d.a_no = @Ano and d.p_type = @Ptype and d.p_no = @Pno ",
                         new { Ano = mixPluDetailPK.A_No, Ptype = mixPluDetailPK.P_Type, Pno = mixPluDetailPK.P_No });
 
@@ -117,10 +117,19 @@ namespace Family_POC.Service
                         promotionDetailDto45.P_Mode = mixPlu.P_Mode;
                         promotionDetailDto45.Mix_Mode = mixPlu.Mix_Mode;
 
+                        string? mealPluno = null;
+                        decimal? mealQty = null;
+
+                        if (mixPluDetail.Match != null && mixPluDetail.Match >0) // 套餐促銷
+                        {
+                            mealPluno += mixPluDetail.Pluno + ",";
+                            mealQty = mixPluDetail.Match;
+                        }
+
                         var comboDto45 = new ComboDto()
                         {
-                            Pluno = mixPluDetail.Pluno,
-                            Qty = mixPluDetail.Qty
+                            Pluno = mealPluno ?? mixPluDetail.Pluno,
+                            Qty = mealQty ?? mixPluDetail.Qty
                         };
                         comboList45.Add(comboDto45);
 
@@ -516,6 +525,19 @@ namespace Family_POC.Service
                             if (containRow45.Count(x => x.Plu_Type == "1") > 0 && containRow45.Count(x => x.Plu_Type == "2") > 0)
                             {
                                 promotionMainDto.Pmt45.Add(promotionDto);
+                            }
+                        }
+                    }
+                    else if (promotionDto.P_Type == PromotionType.Product.Value()) // 促銷套餐
+                    {
+                        if (promotionDto.Mix_Mode == "1") // 固定組合
+                        {
+                            var containRow45 = promotionDto.Combo.Where(x => inputPmtList.Contains(x.Pluno)); // 搜尋包含input的商品編號
+
+                            // 需同時符合A區和B區至少各一商品
+                            if (containRow45.Count(x => x.Plu_Type == "1") > 0 && containRow45.Count(x => x.Plu_Type == "2") > 0)
+                            {
+                                
                             }
                         }
                     }
