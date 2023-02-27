@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.DataProtection.KeyManagement;
 using System;
 using System.Diagnostics;
+using System.IO.Pipelines;
 using System.Linq;
 using System.Numerics;
 using System.Reflection;
@@ -120,18 +121,39 @@ namespace Family_POC.Service
                         string? mealPluno = null;
                         decimal? mealQty = null;
 
-                        if (mixPluDetail.Match != null && mixPluDetail.Match >0) // 套餐促銷
+                        if (mixPluDetail.Match != null && mixPluDetail.Match > 0) // 套餐促銷
                         {
-                            mealPluno += mixPluDetail.Pluno + ",";
-                            mealQty = mixPluDetail.Match;
-                        }
+                            var groupComboDto45 = comboList45.Where(x => x.Group == mixPluDetail.Group).FirstOrDefault();
 
-                        var comboDto45 = new ComboDto()
+                            if (groupComboDto45 != null)
+                            {
+                                groupComboDto45.Pluno = groupComboDto45.Pluno + "," + mixPluDetail.Pluno;
+                            }
+                            else
+                            {
+                                var comboDto45 = new ComboDto()
+                                {
+                                    Pluno = mixPluDetail.Pluno,
+                                    Qty = mixPluDetail.Qty,
+                                    Match = mixPluDetail.Match,
+                                    Group = mixPluDetail.Group,
+                                };
+
+                                comboList45.Add(comboDto45);
+                            }
+                        }
+                        else
                         {
-                            Pluno = mealPluno ?? mixPluDetail.Pluno,
-                            Qty = mealQty ?? mixPluDetail.Qty
-                        };
-                        comboList45.Add(comboDto45);
+                            var comboDto45 = new ComboDto()
+                            {
+                                Pluno = mixPluDetail.Pluno,
+                                Qty = mixPluDetail.Qty,
+                                Match = mixPluDetail.Match,
+                                Group = mixPluDetail.Group,
+                            };
+
+                            comboList45.Add(comboDto45);
+                        }
 
                         promotionDetailDto45.Combo = comboList45;
 
@@ -534,11 +556,7 @@ namespace Family_POC.Service
                         {
                             var containRow45 = promotionDto.Combo.Where(x => inputPmtList.Contains(x.Pluno)); // 搜尋包含input的商品編號
 
-                            // 需同時符合A區和B區至少各一商品
-                            if (containRow45.Count(x => x.Plu_Type == "1") > 0 && containRow45.Count(x => x.Plu_Type == "2") > 0)
-                            {
-                                
-                            }
+                            promotionMainDto.Pmt45.Add(promotionDto);
                         }
                     }
                 }
@@ -786,12 +804,88 @@ namespace Family_POC.Service
                                     else
                                     {
                                         continue;
-                                    }    
+                                    }
                                 }
                                 else
                                 {
                                     continue;
                                 }
+                            }
+                        }
+                        else if (pmt45List.First().P_Type == PromotionType.Product.Value()) // 促銷套餐
+                        {
+                            var mealProductList = new List<ProductDetailDto>();
+                            var mealGroupCount = new List<decimal>(); // 符合套餐數量
+                            var mealGroupPluno = new List<List<string>>(); // 符合套餐品號
+
+                            foreach (var pmt45Combo in pmt45ComboList)
+                            {
+                                var mealPlunoList = pmt45Combo.Pluno.Split(",");
+                                var mealGroupPlunoArray = new List<string>();
+
+                                decimal mealCount = 0;
+                                foreach (var mealPluno in mealPlunoList)
+                                {
+                                    var reqPluno = copyReq.Where(x => x.Pluno == mealPluno).FirstOrDefault();
+
+                                    if (reqPluno != null)
+                                    {
+                                        mealCount += reqPluno.Qty;
+
+                                        for (var k = 0; k < reqPluno.Qty; k++)
+                                        {
+                                            mealGroupPlunoArray.Add(reqPluno.Pluno);
+                                        }                                        
+                                    }  
+                                }
+
+                                // 紀錄套餐Group數量
+                                mealGroupCount.Add((decimal)((mealCount / pmt45Combo.Match) < 1 ? 0 : (mealCount / pmt45Combo.Match)));
+
+                                // 記錄套餐品號
+                                mealGroupPluno.Add(mealGroupPlunoArray);
+                            }
+
+                            if (!mealGroupCount.Contains(0)) // 套餐成立(Match數量沒有為0的)
+                            {
+                                // 增加最小促銷組數
+                                promotion45Count += decimal.ToInt32(mealGroupCount.Min());
+
+                                for (int o = 0; o < pmt45ComboList.Count; o++)
+                                {
+                                    var matchCount = decimal.ToInt32((decimal)(pmt45ComboList[o].Match * mealGroupCount.Min()));
+
+                                    mealGroupPluno[o].RemoveRange(matchCount, mealGroupPluno[o].Count - matchCount);
+                                }
+
+                                foreach (var groupPluno in mealGroupPluno)
+                                {
+                                    foreach (var pluno in groupPluno)
+                                    {
+                                        var reqPluno = copyReq.Where(x => x.Pluno == pluno).First();
+
+                                        var mealProduct = mealProductList.Where(x => x.Pluno == pluno).FirstOrDefault();
+
+                                        if (mealProduct == null)
+                                        {
+                                            mealProductList.Add(new ProductDetailDto
+                                            {
+                                                Pluno = pluno,
+                                                Qty = 1,
+                                                Price = reqPluno.Price,
+                                            });                                            
+                                        }
+                                        else
+                                        {
+                                            mealProduct.Qty++;                                            
+                                        }
+
+                                        reqPluno.Qty--;
+                                    }
+                                }
+
+                                // 新增此促銷商品明細
+                                await SubProductListAddProd(ref subProductList, mealProductList);                                
                             }
                         }
 
@@ -1267,6 +1361,21 @@ namespace Family_POC.Service
                 Price = price,
             });
             
+            return Task.FromResult(subProductList);
+        }
+
+        /// <summary>
+        /// 新增此促銷商品明細
+        /// </summary>
+        /// <param name="subProductList">商品明細列表</param>
+        /// <param name="pluno">品號</param>
+        /// <param name="qty">數量</param>
+        /// <param name="price">價錢</param>
+        /// <returns></returns>
+        private Task SubProductListAddProd(ref List<ProductDetailDto> subProductList, List<ProductDetailDto> mealProductList)
+        {
+            subProductList.AddRange(mealProductList);
+
             return Task.FromResult(subProductList);
         }
 
