@@ -302,10 +302,11 @@ namespace Family_POC.Service
 
             // 取得組合促銷資料 form Redis
             await GetPmtDetailOnRedis(req);
+            
+            // 取得促銷方案最優解
+            var getPromotionPriceResp = await GetOptimalSolution(req);
 
             sw.Stop();
-            
-            var getPromotionPriceResp = await GetOptimalSolution(req);
 
             Console.WriteLine($"耗時 : {sw.ElapsedMilliseconds} 豪秒");
 
@@ -336,13 +337,14 @@ namespace Family_POC.Service
 
                 foreach (var reqPluno in req)
                 {
-                    var pmtdetailDto = new PmtdetailDto();
-
-                    pmtdetailDto.Plu = reqPluno.Pluno;
+                    var pmtdetailDto = new PmtdetailDto
+                    {
+                        Plu = reqPluno.Pluno
+                    };
 
                     var pmtList = new List<PmtDto>();
 
-                    if (tempPmtDtoList.Count(x => x.Pluno == reqPluno.Pluno) > 0)
+                    if (tempPmtDtoList.Any(x => x.Pluno == reqPluno.Pluno)) // tempPmtDtoList符合品號數量 > 0
                     {
                         var tempPmtDto = tempPmtDtoList.Where(x => x.Pluno == reqPluno.Pluno).ToList();
 
@@ -385,9 +387,6 @@ namespace Family_POC.Service
 
                                     for (int v = 0; v < _countLists[index][j]; v++)
                                     {
-                                        //if (plunoList.Count <= v) // 防止相同單品折扣出錯
-                                        //    break;
-
                                         productList[v].SalePrice = productList[v].SalePrice + remainderPrice;
                                     }
                                 }
@@ -399,11 +398,14 @@ namespace Family_POC.Service
 
                                 foreach (var pluno in plunoList)
                                 {
-                                    var pmt = new PmtDto();
-                                    pmt.Pmtno = permuteList[j];
-                                    pmt.Pmtname = pmtName;
-                                    pmt.Qty = decimal.ToInt32(pluno.Qty);
-                                    pmt.Discount = decimal.ToInt32((pluno.Price * pluno.Qty) - pluno.SalePrice > 0 ? (pluno.Price * pluno.Qty) - pluno.SalePrice : 0);
+                                    var pmt = new PmtDto
+                                    {
+                                        Pmtno = permuteList[j],
+                                        Pmtname = pmtName,
+                                        Qty = decimal.ToInt32(pluno.Qty),
+                                        Discount = decimal.ToInt32((pluno.Price * pluno.Qty) - pluno.SalePrice > 0 ? (pluno.Price * pluno.Qty) - pluno.SalePrice : 0)
+                                    };
+
                                     pmt.Disrate = pmt.Discount > 0 ? Math.Round(pluno.SalePrice / (pluno.Price * pluno.Qty), 2) : 0; // 折扣率(四捨五入到小數點第二位)
 
                                     if (pmtList.Count < reqPluno.Qty)
@@ -424,29 +426,32 @@ namespace Family_POC.Service
                                             Discount = pmt.Discount,
                                             Disrate = pmt.Disrate
                                         };
-                                        tempPmtDto.Pluno = reqPluno.Pluno;
 
+                                        tempPmtDto.Pluno = reqPluno.Pluno;
                                         tempPmtDtoList.Add(tempPmtDto);
                                     }
                                 }                                
                             }
                         }
                     }
+
                     pmtdetailDto.Saleprice = reqPluno.Qty * reqPluno.Price - pmtList.Sum(x => x.Discount);
                     pmtdetailDto.Pmt = pmtList;
 
                     pmtdetailList.Add(pmtdetailDto);
                 }
             }
-            else // 都不符合促銷
+            else // 都不符合任一促銷
             {
                 resultPrice = _totalPrice;
 
                 foreach (var reqPluno in req)
                 {
-                    var pmtdetailDto = new PmtdetailDto();
+                    var pmtdetailDto = new PmtdetailDto
+                    {
+                        Plu = reqPluno.Pluno
+                    };
 
-                    pmtdetailDto.Plu = reqPluno.Pluno;
                     pmtdetailList.Add(pmtdetailDto);
                 }
             }
@@ -540,7 +545,7 @@ namespace Family_POC.Service
                             var containRow45 = promotionDto.Combo.Where(x => inputPmtList.Contains(x.Pluno)); // 搜尋包含input的商品編號
 
                             // 需同時符合A區和B區至少各一商品
-                            if (containRow45.Count(x => x.Plu_Type == "1") > 0 && containRow45.Count(x => x.Plu_Type == "2") > 0)
+                            if (containRow45.Any(x => x.Plu_Type == "1") && containRow45.Any(x => x.Plu_Type == "2"))
                             {
                                 promotionMainDto.Pmt45.Add(promotionDto);
                             }
@@ -611,7 +616,7 @@ namespace Family_POC.Service
             Console.WriteLine("[");
             for (int i = 0; i < _permuteLists.Count; i++)
             {
-                var math = Math.Round(Decimal.ToInt32(_priceList[i]) / _totalPrice, 2); // 折扣率(四捨五入到小數點第二位)
+                var math = Math.Round(decimal.ToInt32(_priceList[i]) / _totalPrice, 2); // 折扣率(四捨五入到小數點第二位)
                 Console.WriteLine($"    [{string.Join(',', _permuteLists[i])}] ({string.Join(',', _countLists[i])}) (原價:{_totalPrice} 折:{_totalPrice - Decimal.ToInt32(_priceList[i])} 折扣率:{math} 實際銷售金額:{Decimal.ToInt32(_priceList[i])} )");
             }
 
@@ -1318,7 +1323,7 @@ namespace Family_POC.Service
         /// </summary>
         /// <param name="req"></param>
         /// <returns></returns>
-        private async Task<List<GetPromotionPriceReq>> GetInputReq(List<GetPromotionPriceReq> req)
+        private Task<List<GetPromotionPriceReq>> GetInputReq(List<GetPromotionPriceReq> req)
         {
             var copyReq = new List<GetPromotionPriceReq>();
 
@@ -1337,7 +1342,7 @@ namespace Family_POC.Service
                 }
             }
 
-            return copyReq;
+            return Task.FromResult(copyReq);
         }
 
         /// <summary>
