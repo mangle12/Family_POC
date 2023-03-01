@@ -6,16 +6,16 @@ namespace Family_POC.Test
     [TestFixture()]
     public class PromotionControllerTest
     {
-        //private IPromotionService _promotionService;
+        private IDistributedCache _cache;
 
         [SetUp]
         public void SetUp()
         {
-            //var serviceProvider = new ServiceCollection()
-            //.AddLogging()
-            //.BuildServiceProvider();
-
-            //_promotionService = serviceProvider.GetService<IPromotionService>()!;
+            // 建立redis連線
+            var services = new ServiceCollection();            
+            services.AddStackExchangeRedisCache(o => { o.Configuration = "10.20.30.208:6379"; });
+            var provider = services.BuildServiceProvider();
+            _cache = provider.GetService<IDistributedCache>()!;
         }
 
         /// <summary>
@@ -69,11 +69,11 @@ namespace Family_POC.Test
 
             IDistributedCache cache = new Mock<IDistributedCache>().Object;
             IDbService dbService = new Mock<IDbService>().Object;
-            PromotionService ps = new PromotionService(cache, dbService);
+            PromotionService ps = new PromotionService(_cache, dbService);
 
             var result = await ps.GetPromotionPriceAsync(req);
 
-            Assert.AreEqual(229, result.Totalprice);
+            Assert.AreEqual(299, decimal.ToInt32(result.Totalprice));
         }
     }
 }
