@@ -6,7 +6,7 @@ namespace Family_POC.Test
     [TestFixture()]
     public class PromotionControllerTest
     {
-        private IDistributedCache _cache;
+        private IDistributedCache? _cache;
 
         [SetUp]
         public void SetUp()
@@ -15,7 +15,7 @@ namespace Family_POC.Test
             var services = new ServiceCollection();            
             services.AddStackExchangeRedisCache(o => { o.Configuration = "10.20.30.208:6379"; });
             var provider = services.BuildServiceProvider();
-            _cache = provider.GetService<IDistributedCache>()!;
+            _cache = provider.GetService<IDistributedCache>();
         }
 
         /// <summary>
@@ -69,7 +69,7 @@ namespace Family_POC.Test
 
             IDistributedCache cache = new Mock<IDistributedCache>().Object;
             IDbService dbService = new Mock<IDbService>().Object;
-            PromotionService ps = new PromotionService(_cache, dbService);
+            PromotionService ps = new PromotionService(_cache!, dbService);
 
             var result = await ps.GetPromotionPriceAsync(req);
 

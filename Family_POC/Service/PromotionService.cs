@@ -14,14 +14,14 @@ namespace Family_POC.Service
         private readonly IDistributedCache _cache;
         private readonly IDbService _dbService;
         private decimal _totalPrice; // 此次購買商品原總價
-        private IList<IList<string>> _permuteLists; // 符合促銷排列組合        
+        private IList<IList<string>> _permuteLists; // 符合促銷排列組合
         private IList<decimal> _priceList; // 促銷計算後價格
         private IList<IList<int>> _countLists; // 促銷數量
         private List<MixPluMultipleDto> _mixPluMultipleDtoLists; // 促銷變動分量組合
-        private Dictionary<string, List<MultipleCountDto>> _multipleCountDict; // 促銷變動分量組合組數
-        private Dictionary<string, List<ProductDetailDto>> _productListsDict; // 促銷品項組合
-        private Dictionary<string, decimal> _permutePriceListsDict; // 促銷排列組合價錢
-        private Dictionary<string, List<GetPromotionPriceReq>> _remainProductListsDict; // 剩餘品項組合
+        private readonly Dictionary<string, List<MultipleCountDto>> _multipleCountDict; // 促銷變動分量組合組數
+        private readonly Dictionary<string, List<ProductDetailDto>> _productListsDict; // 促銷品項組合
+        private readonly Dictionary<string, decimal> _permutePriceListsDict; // 促銷排列組合價錢
+        private readonly Dictionary<string, List<GetPromotionPriceReq>> _remainProductListsDict; // 剩餘品項組合
 
         public PromotionService(IDistributedCache cache, IDbService dbService)
         {
@@ -118,9 +118,6 @@ namespace Family_POC.Service
                         promotionDetailDto45.P_Mode = mixPlu.P_Mode;
                         promotionDetailDto45.Mix_Mode = mixPlu.Mix_Mode;
 
-                        string? mealPluno = null;
-                        decimal? mealQty = null;
-
                         if (mixPluDetail.Match != null && mixPluDetail.Match > 0) // 套餐促銷
                         {
                             var groupComboDto45 = comboList45.Where(x => x.Group == mixPluDetail.Group).FirstOrDefault();
@@ -209,7 +206,6 @@ namespace Family_POC.Service
                     promotionMainDto.Pmt45.Add(promotionDetailDto45);
                 }
                 #endregion
-
 
                 // 商品促銷表新增至Redis
                 await _cache.SetStringAsync(item.Plu_No, JsonSerializer.Serialize(promotionMainDto));
@@ -399,7 +395,7 @@ namespace Family_POC.Service
                                 // 促銷資料
                                 var dataListString = await _cache.GetStringAsync("Promotion");
                                 var dataList = JsonSerializer.Deserialize<List<PromotionDataDto>>(dataListString);
-                                var pmtName = dataList.SingleOrDefault(x => x.P_No == permuteList[j]).P_Name;
+                                var pmtName = dataList!.SingleOrDefault(x => x.P_No == permuteList[j])!.P_Name;
 
                                 foreach (var pluno in plunoList)
                                 {
@@ -484,7 +480,7 @@ namespace Family_POC.Service
 
                 var redisPromotionDto = JsonSerializer.Deserialize<PromotionMainDto>(redisPromotionJson);
 
-                foreach (var promotionDto in redisPromotionDto.Pmt45)
+                foreach (var promotionDto in redisPromotionDto!.Pmt45)
                 {
                     if (promotionDto.P_Type == PromotionType.Combination.Value()) // 組合品搭贈
                     {
@@ -519,7 +515,7 @@ namespace Family_POC.Service
                             if (containRow45.Any())
                             {
                                 var mixPluMultipleDto = JsonSerializer.Deserialize<List<MixPluMultipleDto>>(await _cache.GetStringAsync(promotionDto.P_Key));
-                                _mixPluMultipleDtoLists.AddRange(mixPluMultipleDto);
+                                _mixPluMultipleDtoLists.AddRange(mixPluMultipleDto!);
                             }
                         }
                         else if (promotionDto.Mix_Mode == "3") // 變動分量以上
@@ -533,7 +529,7 @@ namespace Family_POC.Service
                             if (containRow45.Any())
                             {
                                 var mixPluMultipleDto = JsonSerializer.Deserialize<List<MixPluMultipleDto>>(await _cache.GetStringAsync(promotionDto.P_Key));
-                                _mixPluMultipleDtoLists.AddRange(mixPluMultipleDto);
+                                _mixPluMultipleDtoLists.AddRange(mixPluMultipleDto!);
                             }
                         }
                     }
@@ -762,7 +758,7 @@ namespace Family_POC.Service
                         {
                             var redisPromotionJson = await _cache.GetStringAsync(pmt45List.First().P_Key);
                             var redisPromotionDto = JsonSerializer.Deserialize<FmMixAbpluDetailDto>(redisPromotionJson);
-                            var pluType1List = redisPromotionDto.Detail.Where(x => x.Plu_Type == "1").ToList();
+                            var pluType1List = redisPromotionDto!.Detail.Where(x => x.Plu_Type == "1").ToList();
                             var pluType2List = redisPromotionDto.Detail.Where(x => x.Plu_Type == "2").ToList();
 
                             foreach (var promotion in curPromotionList)
