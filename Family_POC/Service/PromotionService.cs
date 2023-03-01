@@ -154,10 +154,7 @@ namespace Family_POC.Service
 
                         promotionDetailDto45.Combo = comboList45;
 
-                        if (mixPlu.Mix_Mode == "1") // 固定組合促銷
-                        {
-                            promotionDetailDto45.SalePrice = mixPlu.P_Mode == "1" ? mixPlu.No_Vip_Fix_Amount : mixPlu.No_Vip_Saleoff; // P_Mode=1時取得No_Vip_Fix_Amount欄位 / P_Mode=2時取得No_Vip_Saleoff欄位
-                        }
+                        promotionDetailDto45.SalePrice = mixPlu.P_Mode == "1" ? mixPlu.No_Vip_Fix_Amount : mixPlu.No_Vip_Saleoff; // P_Mode=1時取得No_Vip_Fix_Amount欄位 / P_Mode=2時取得No_Vip_Saleoff欄位
                     }
 
                     promotionMainDto.Pmt45.Add(promotionDetailDto45);
@@ -537,6 +534,13 @@ namespace Family_POC.Service
                                 _mixPluMultipleDtoLists.AddRange(mixPluMultipleDto!);
                             }
                         }
+                        else if (promotionDto.Mix_Mode == "6") // 套餐組合
+                        {
+                            var containRow45 = promotionDto.Combo.Where(x => inputPmtList.Contains(x.Pluno)); // 搜尋包含input的商品編號
+
+                            if (containRow45.Any())
+                                promotionMainDto.Pmt45.Add(promotionDto);
+                        }
                     }
                     else if (promotionDto.P_Type == PromotionType.Matching.Value()) // 配對搭贈
                     {
@@ -549,15 +553,6 @@ namespace Family_POC.Service
                             {
                                 promotionMainDto.Pmt45.Add(promotionDto);
                             }
-                        }
-                    }
-                    else if (promotionDto.P_Type == PromotionType.Product.Value()) // 促銷套餐
-                    {
-                        if (promotionDto.Mix_Mode == "1") // 固定組合
-                        {
-                            var containRow45 = promotionDto.Combo.Where(x => inputPmtList.Contains(x.Pluno)); // 搜尋包含input的商品編號
-
-                            promotionMainDto.Pmt45.Add(promotionDto);
                         }
                     }
                 }
@@ -734,30 +729,109 @@ namespace Family_POC.Service
 
                         if (pmt45List.First().P_Type == "4") // 組合品搭贈
                         {
-                            while (curPromotionList.Select(x => x.Qty).All(y => y > 0)) // 如果輸入商品組合數量都不為0就多新增一組商品組合並扣除數量
+                            if (pmt45List.First().Mix_Mode == "6") // 促銷套餐
                             {
-                                var mixCount = 0;
-                                foreach (var promotionPrice in curPromotionList)
+                                var mealProductList = new List<ProductDetailDto>();
+                                var mealGroupCount = new List<decimal>(); // 符合套餐數量
+                                var mealGroupPluno = new List<List<string>>(); // 符合套餐品號
+
+                                foreach (var pmt45Combo in pmt45ComboList)
                                 {
-                                    if (promotionPrice.Qty == 0)
-                                        break;
+                                    var mealPlunoList = pmt45Combo.Pluno.Split(",");
+                                    var mealGroupPlunoArray = new List<string>();
 
-                                    var promotion = copyReq.Where(x => x.Pluno == promotionPrice.Pluno).First();
-                                    var qty = pmt45ComboList.Where(x => x.Pluno == promotionPrice.Pluno).First().Qty;
-                                    promotion.Qty -= qty;
+                                    decimal mealCount = 0;
+                                    foreach (var mealPluno in mealPlunoList)
+                                    {
+                                        var reqPluno = copyReq.Where(x => x.Pluno == mealPluno).FirstOrDefault();
 
-                                    // 新增此促銷商品明細
-                                    await SubProductListAddProd(ref subProductList, promotion.Pluno, qty, promotion.Price);
+                                        if (reqPluno != null)
+                                        {
+                                            mealCount += reqPluno.Qty;
 
-                                    mixCount++;
+                                            for (var k = 0; k < reqPluno.Qty; k++)
+                                            {
+                                                mealGroupPlunoArray.Add(reqPluno.Pluno);
+                                            }
+                                        }
+                                    }
 
-                                    if (mixCount == 2)
-                                        break;
+                                    // 紀錄套餐Group數量
+                                    mealGroupCount.Add((decimal)((mealCount / pmt45Combo.Match) < 1 ? 0 : (mealCount / pmt45Combo.Match)));
+
+                                    // 記錄套餐品號
+                                    mealGroupPluno.Add(mealGroupPlunoArray);
                                 }
 
-                                // 促銷組數+1 
-                                promotion45Count++;
+                                if (!mealGroupCount.Contains(0)) // 套餐成立(Match數量沒有為0的)
+                                {
+                                    // 增加最小促銷組數
+                                    promotion45Count += decimal.ToInt32(mealGroupCount.Min());
+
+                                    for (int o = 0; o < pmt45ComboList.Count; o++)
+                                    {
+                                        var matchCount = decimal.ToInt32((decimal)(pmt45ComboList[o].Match * mealGroupCount.Min()));
+
+                                        mealGroupPluno[o].RemoveRange(matchCount, mealGroupPluno[o].Count - matchCount);
+                                    }
+
+                                    foreach (var groupPluno in mealGroupPluno)
+                                    {
+                                        foreach (var pluno in groupPluno)
+                                        {
+                                            var reqPluno = copyReq.Where(x => x.Pluno == pluno).First();
+
+                                            var mealProduct = mealProductList.Where(x => x.Pluno == pluno).FirstOrDefault();
+
+                                            if (mealProduct == null)
+                                            {
+                                                mealProductList.Add(new ProductDetailDto
+                                                {
+                                                    Pluno = pluno,
+                                                    Qty = 1,
+                                                    Price = reqPluno.Price,
+                                                });
+                                            }
+                                            else
+                                            {
+                                                mealProduct.Qty++;
+                                            }
+
+                                            reqPluno.Qty--;
+                                        }
+                                    }
+
+                                    // 新增此促銷商品明細
+                                    await SubProductListAddProd(ref subProductList, mealProductList);
+                                }
                             }
+                            else
+                            {
+                                while (curPromotionList.Select(x => x.Qty).All(y => y > 0)) // 如果輸入商品組合數量都不為0就多新增一組商品組合並扣除數量
+                                {
+                                    var mixCount = 0;
+                                    foreach (var promotionPrice in curPromotionList)
+                                    {
+                                        if (promotionPrice.Qty == 0)
+                                            break;
+
+                                        var promotion = copyReq.Where(x => x.Pluno == promotionPrice.Pluno).First();
+                                        var qty = pmt45ComboList.Where(x => x.Pluno == promotionPrice.Pluno).First().Qty;
+                                        promotion.Qty -= qty;
+
+                                        // 新增此促銷商品明細
+                                        await SubProductListAddProd(ref subProductList, promotion.Pluno, qty, promotion.Price);
+
+                                        mixCount++;
+
+                                        if (mixCount == 2)
+                                            break;
+                                    }
+
+                                    // 促銷組數+1 
+                                    promotion45Count++;
+                                }
+                            }                            
                         }
                         else if (pmt45List.First().P_Type == "5") // 配對搭贈
                         {
@@ -812,83 +886,7 @@ namespace Family_POC.Service
                                     continue;
                                 }
                             }
-                        }
-                        else if (pmt45List.First().P_Type == PromotionType.Product.Value()) // 促銷套餐
-                        {
-                            var mealProductList = new List<ProductDetailDto>();
-                            var mealGroupCount = new List<decimal>(); // 符合套餐數量
-                            var mealGroupPluno = new List<List<string>>(); // 符合套餐品號
-
-                            foreach (var pmt45Combo in pmt45ComboList)
-                            {
-                                var mealPlunoList = pmt45Combo.Pluno.Split(",");
-                                var mealGroupPlunoArray = new List<string>();
-
-                                decimal mealCount = 0;
-                                foreach (var mealPluno in mealPlunoList)
-                                {
-                                    var reqPluno = copyReq.Where(x => x.Pluno == mealPluno).FirstOrDefault();
-
-                                    if (reqPluno != null)
-                                    {
-                                        mealCount += reqPluno.Qty;
-
-                                        for (var k = 0; k < reqPluno.Qty; k++)
-                                        {
-                                            mealGroupPlunoArray.Add(reqPluno.Pluno);
-                                        }                                        
-                                    }  
-                                }
-
-                                // 紀錄套餐Group數量
-                                mealGroupCount.Add((decimal)((mealCount / pmt45Combo.Match) < 1 ? 0 : (mealCount / pmt45Combo.Match)));
-
-                                // 記錄套餐品號
-                                mealGroupPluno.Add(mealGroupPlunoArray);
-                            }
-
-                            if (!mealGroupCount.Contains(0)) // 套餐成立(Match數量沒有為0的)
-                            {
-                                // 增加最小促銷組數
-                                promotion45Count += decimal.ToInt32(mealGroupCount.Min());
-
-                                for (int o = 0; o < pmt45ComboList.Count; o++)
-                                {
-                                    var matchCount = decimal.ToInt32((decimal)(pmt45ComboList[o].Match * mealGroupCount.Min()));
-
-                                    mealGroupPluno[o].RemoveRange(matchCount, mealGroupPluno[o].Count - matchCount);
-                                }
-
-                                foreach (var groupPluno in mealGroupPluno)
-                                {
-                                    foreach (var pluno in groupPluno)
-                                    {
-                                        var reqPluno = copyReq.Where(x => x.Pluno == pluno).First();
-
-                                        var mealProduct = mealProductList.Where(x => x.Pluno == pluno).FirstOrDefault();
-
-                                        if (mealProduct == null)
-                                        {
-                                            mealProductList.Add(new ProductDetailDto
-                                            {
-                                                Pluno = pluno,
-                                                Qty = 1,
-                                                Price = reqPluno.Price,
-                                            });                                            
-                                        }
-                                        else
-                                        {
-                                            mealProduct.Qty++;                                            
-                                        }
-
-                                        reqPluno.Qty--;
-                                    }
-                                }
-
-                                // 新增此促銷商品明細
-                                await SubProductListAddProd(ref subProductList, mealProductList);                                
-                            }
-                        }
+                        }                        
 
                         promotionCountList.Add(promotion45Count);
                     }
