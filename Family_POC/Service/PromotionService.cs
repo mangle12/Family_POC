@@ -375,18 +375,21 @@ namespace Family_POC.Service
                                 var plunoList = productList.Where(x => x.Pluno == reqPluno.Pluno).ToList();
                                 var permutePrice = _permutePriceListsDict[$"{index}_{j}"]; // 促銷組合售價/組數 = 單一促銷售價
 
-                                // 判斷每個品號的促銷價格加總是否等於最終促銷價格
-                                if (productList.Sum(x => x.SalePrice) < permutePrice)
+                                if (!permuteList[j].StartsWith("D")) // 套餐促銷不用進入此function
                                 {
-                                    var maxPrice = productList.Max(x => x.Price); // 取得單品金額最大項
-
-                                    var remainderPrice = (permutePrice - productList.Sum(x => x.SalePrice)) / _countLists[index][j]; // 若有剩餘金額則攤平到各項目
-
-                                    for (int v = 0; v < _countLists[index][j]; v++)
+                                    // 判斷每個品號的促銷價格加總是否等於最終促銷價格
+                                    if (productList.Sum(x => x.SalePrice * x.Qty) < permutePrice)
                                     {
-                                        productList[v].SalePrice = productList[v].SalePrice + remainderPrice;
+                                        var maxPrice = productList.Max(x => x.Price); // 取得單品金額最大項
+
+                                        var remainderPrice = (permutePrice - productList.Sum(x => x.SalePrice)) / _countLists[index][j]; // 若有剩餘金額則攤平到各項目
+
+                                        for (int v = 0; v < _countLists[index][j]; v++)
+                                        {
+                                            productList[v].SalePrice = productList[v].SalePrice + remainderPrice;
+                                        }
                                     }
-                                }
+                                }                                
 
                                 // 促銷資料
                                 var dataListString = await _cache.GetStringAsync("Promotion");
