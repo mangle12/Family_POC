@@ -400,7 +400,8 @@ namespace Family_POC.Service
                                         Pmtno = permuteList[j],
                                         Pmtname = pmtName,
                                         Qty = decimal.ToInt32(pluno.Qty),
-                                        Discount = decimal.ToInt32((pluno.Price * pluno.Qty) - pluno.SalePrice > 0 ? (pluno.Price * pluno.Qty) - pluno.SalePrice : 0)
+                                        //Discount = decimal.ToInt32((pluno.Price * pluno.Qty) - pluno.SalePrice > 0 ? (pluno.Price * pluno.Qty) - pluno.SalePrice : 0)
+                                        Discount = decimal.ToInt32((pluno.Price * reqPluno.Qty) - (pluno.SalePrice * reqPluno.Qty) > 0 ? (pluno.Price * reqPluno.Qty) - (pluno.SalePrice * reqPluno.Qty) : 0)
                                     };
 
                                     pmt.Disrate = pmt.Discount > 0 ? Math.Round(pluno.SalePrice / (pluno.Price * pluno.Qty), 2) : 0; // 折扣率(四捨五入到小數點第二位)
