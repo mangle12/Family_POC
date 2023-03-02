@@ -404,7 +404,7 @@ namespace Family_POC.Service
                                         Discount = decimal.ToInt32((pluno.Price * reqPluno.Qty) - (pluno.SalePrice * reqPluno.Qty) > 0 ? (pluno.Price * reqPluno.Qty) - (pluno.SalePrice * reqPluno.Qty) : 0)
                                     };
 
-                                    pmt.Disrate = pmt.Discount > 0 ? Math.Round(pluno.SalePrice / (pluno.Price * pluno.Qty), 2) : 0; // 折扣率(四捨五入到小數點第二位)
+                                    pmt.Disrate = pmt.Discount > 0 ? Math.Round(pluno.SalePrice / (pluno.Price * reqPluno.Qty), 2) : 0; // 折扣率(四捨五入到小數點第二位)
 
                                     if (pmtList.Count < reqPluno.Qty)
                                     {
