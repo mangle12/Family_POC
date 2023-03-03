@@ -328,6 +328,7 @@ namespace Family_POC.Service
                 var permuteList = _permuteLists[index];
                 var permuteDetailString = string.Empty;
                 var tempPmtDtoList = new List<TempPmtDto>();
+                var nowIndex = 0; // 第幾個品號
 
                 // 取得符合促銷的全部品項
                 var permuteProductList = await GetAllPermuteProductList(permuteList, index);
@@ -380,21 +381,36 @@ namespace Family_POC.Service
                                 var dataList = JsonSerializer.Deserialize<List<PromotionDataDto>>(dataListString);
                                 var pmtName = dataList!.SingleOrDefault(x => x.P_No == permuteList[j])!.P_Name;
 
-                                if (dataList!.SingleOrDefault(x => x.P_No == permuteList[j])!.Mix_Mode != "6") // 套餐促銷不用進入此function
+                                //if (dataList!.SingleOrDefault(x => x.P_No == permuteList[j])!.Mix_Mode != "6") // 套餐促銷不用進入此function
+                                //{
+                                //    // 判斷每個品號的促銷價格加總是否等於最終促銷價格
+                                //    if (productList.Sum(x => x.SalePrice * x.Qty) < permutePrice)
+                                //    {
+                                //        var maxPrice = productList.Max(x => x.Price); // 取得單品金額最大項
+
+                                //        var remainderPrice = (permutePrice - productList.Sum(x => x.SalePrice)) / _countLists[index][j]; // 若有剩餘金額則攤平到各項目
+
+                                //        for (int v = 0; v < _countLists[index][j]; v++)
+                                //        {
+                                //            productList[v].SalePrice = productList[v].SalePrice + remainderPrice;
+                                //        }
+                                //    }
+                                //}
+
+                                // 第一次進入迴圈時判斷每個品號的促銷價格加總是否等於最終促銷價格
+                                if (nowIndex == 0 && productList.Sum(x => x.SalePrice * x.Qty) < permutePrice)
                                 {
-                                    // 判斷每個品號的促銷價格加總是否等於最終促銷價格
-                                    if (productList.Sum(x => x.SalePrice * x.Qty) < permutePrice)
+                                    var maxPrice = productList.Max(x => x.Price); // 取得單品金額最大項
+
+                                    var remainderPrice = (permutePrice - productList.Sum(x => x.SalePrice * x.Qty)) / _countLists[index][j]; // 若有剩餘金額則攤平到各項目
+
+                                    var maxPriceList = productList.Where(x => x.Price == maxPrice).ToList();
+
+                                    for (int v = 0; v < maxPriceList.Count; v++)
                                     {
-                                        var maxPrice = productList.Max(x => x.Price); // 取得單品金額最大項
-
-                                        var remainderPrice = (permutePrice - productList.Sum(x => x.SalePrice)) / _countLists[index][j]; // 若有剩餘金額則攤平到各項目
-
-                                        for (int v = 0; v < _countLists[index][j]; v++)
-                                        {
-                                            productList[v].SalePrice = productList[v].SalePrice + remainderPrice;
-                                        }
+                                        maxPriceList[v].SalePrice = maxPriceList[v].SalePrice + remainderPrice;
                                     }
-                                }                                                                                                
+                                }
 
                                 foreach (var pluno in plunoList)
                                 {
@@ -440,6 +456,8 @@ namespace Family_POC.Service
                     pmtdetailDto.Pmt = pmtList;
 
                     pmtdetailList.Add(pmtdetailDto);
+
+                    nowIndex++;
                 }
             }
             else // 都不符合任一促銷
