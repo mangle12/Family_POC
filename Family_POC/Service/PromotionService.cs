@@ -380,7 +380,7 @@ namespace Family_POC.Service
                                 var dataList = JsonSerializer.Deserialize<List<PromotionDataDto>>(dataListString);
                                 var pmtName = dataList!.SingleOrDefault(x => x.P_No == permuteList[j])!.P_Name;
 
-                                if (dataList!.SingleOrDefault(x => x.P_No == permuteList[j])!.Mix_Mode == "6") // 套餐促銷不用進入此function
+                                if (dataList!.SingleOrDefault(x => x.P_No == permuteList[j])!.Mix_Mode != "6") // 套餐促銷不用進入此function
                                 {
                                     // 判斷每個品號的促銷價格加總是否等於最終促銷價格
                                     if (productList.Sum(x => x.SalePrice * x.Qty) < permutePrice)
