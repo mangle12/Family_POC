@@ -47,9 +47,9 @@ namespace Family_POC.Service
             var pmtList = await _dbService.GetAllAsync<PluDto>(@"SELECT plu_no,retailprice FROM fm_plu", new { });
 
             #region 促銷方案
-            var dataList = await _dbService.GetAllAsync<PromotionDataDto>(@"SELECT a_no, p_type, p_no, p_name, p_mode, 'Y' as is_same_plu FROM fm_pmt
+            var dataList = await _dbService.GetAllAsync<PromotionDataDto>(@"SELECT a_no, p_type, p_no, p_name, p_mode, 'Y' as is_same_plu, '0' as mix_mode FROM fm_pmt
                                                                     union all
-                                                                    SELECT a_no, p_type, p_no, p_name, p_mode, is_same_plu FROM fm_mix_plu", new { });
+                                                                    SELECT a_no, p_type, p_no, p_name, p_mode, is_same_plu, mix_mode FROM fm_mix_plu", new { });
 
             // 促銷列表新增至Redis
             await _cache.SetStringAsync("Promotion", JsonSerializer.Serialize(dataList));
@@ -375,7 +375,12 @@ namespace Family_POC.Service
                                 var plunoList = productList.Where(x => x.Pluno == reqPluno.Pluno).ToList();
                                 var permutePrice = _permutePriceListsDict[$"{index}_{j}"]; // 促銷組合售價/組數 = 單一促銷售價
 
-                                if (!permuteList[j].StartsWith("D")) // 套餐促銷不用進入此function
+                                // 促銷資料
+                                var dataListString = await _cache.GetStringAsync("Promotion");
+                                var dataList = JsonSerializer.Deserialize<List<PromotionDataDto>>(dataListString);
+                                var pmtName = dataList!.SingleOrDefault(x => x.P_No == permuteList[j])!.P_Name;
+
+                                if (dataList!.SingleOrDefault(x => x.P_No == permuteList[j])!.Mix_Mode == "6") // 套餐促銷不用進入此function
                                 {
                                     // 判斷每個品號的促銷價格加總是否等於最終促銷價格
                                     if (productList.Sum(x => x.SalePrice * x.Qty) < permutePrice)
@@ -389,12 +394,7 @@ namespace Family_POC.Service
                                             productList[v].SalePrice = productList[v].SalePrice + remainderPrice;
                                         }
                                     }
-                                }                                
-
-                                // 促銷資料
-                                var dataListString = await _cache.GetStringAsync("Promotion");
-                                var dataList = JsonSerializer.Deserialize<List<PromotionDataDto>>(dataListString);
-                                var pmtName = dataList!.SingleOrDefault(x => x.P_No == permuteList[j])!.P_Name;
+                                }                                                                                                
 
                                 foreach (var pluno in plunoList)
                                 {
@@ -407,7 +407,7 @@ namespace Family_POC.Service
                                         Discount = decimal.ToInt32((pluno.Price * reqPluno.Qty) - (pluno.SalePrice * reqPluno.Qty) > 0 ? (pluno.Price * reqPluno.Qty) - (pluno.SalePrice * reqPluno.Qty) : 0)
                                     };
 
-                                    pmt.Disrate = pmt.Discount > 0 ? Math.Round(pluno.SalePrice / (pluno.Price * reqPluno.Qty), 2) : 0; // 折扣率(四捨五入到小數點第二位)
+                                    pmt.Disrate = pmt.Discount > 0 ? Math.Round((pluno.SalePrice * reqPluno.Qty) / (pluno.Price * reqPluno.Qty), 2) : 0; // 折扣率(四捨五入到小數點第二位)
 
                                     if (pmtList.Count < reqPluno.Qty)
                                     {

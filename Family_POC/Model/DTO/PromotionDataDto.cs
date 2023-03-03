@@ -12,6 +12,8 @@
 
         public string P_Mode { get; set; }
 
+        public string Mix_Mode { get; set; }
+
         public string Is_Same_Plu { get; set; }
     }
 }
