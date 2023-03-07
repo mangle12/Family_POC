@@ -357,8 +357,13 @@ namespace Family_POC.Service
                                 Disrate = tempPmtDto[c].Disrate,
                             });
 
-                            var promotion = permuteProductList.Where(x => x.Pluno == reqPluno.Pluno).First();
+                            var promotion = permuteProductList.Where(x => x.Pluno == reqPluno.Pluno).Where(x => x.Qty > 0).First();
                             promotion.Qty -= 1;
+
+                            if (promotion.Qty == 0)
+                            {
+                                tempPmtDtoList.Remove(tempPmtDtoList.Where(x => x.Pluno == reqPluno.Pluno).First());
+                            }
                         }
                     }
                     else
@@ -454,7 +459,7 @@ namespace Family_POC.Service
                                     }
                                 }                                
                             }
-                        }
+                        }                        
                     }
 
                     pmtdetailDto.Saleprice = reqPluno.Qty * reqPluno.Price - pmtList.Sum(x => x.Discount);
