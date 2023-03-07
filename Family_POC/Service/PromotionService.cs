@@ -414,14 +414,19 @@ namespace Family_POC.Service
 
                                 foreach (var pluno in plunoList)
                                 {
-                                    var pmt = new PmtDto
+                                    var pmt = new PmtDto();
+                                    pmt.Pmtno = permuteList[j];
+                                    pmt.Pmtname = pmtName;
+                                    pmt.Qty = decimal.ToInt32(pluno.Qty);
+
+                                    if (dataList!.SingleOrDefault(x => x.P_No == permuteList[j])!.Mix_Mode == "6") // 套餐促銷
                                     {
-                                        Pmtno = permuteList[j],
-                                        Pmtname = pmtName,
-                                        Qty = decimal.ToInt32(pluno.Qty),
-                                        //Discount = decimal.ToInt32((pluno.Price * pluno.Qty) - pluno.SalePrice > 0 ? (pluno.Price * pluno.Qty) - pluno.SalePrice : 0)
-                                        Discount = decimal.ToInt32((pluno.Price * reqPluno.Qty) - (pluno.SalePrice * reqPluno.Qty) > 0 ? (pluno.Price * reqPluno.Qty) - (pluno.SalePrice * reqPluno.Qty) : 0)
-                                    };
+                                        pmt.Discount = decimal.ToInt32((pluno.Price * reqPluno.Qty) - (pluno.SalePrice * reqPluno.Qty) > 0 ? (pluno.Price * reqPluno.Qty) - (pluno.SalePrice * reqPluno.Qty) : 0);
+                                    }
+                                    else // 其他促銷
+                                    {
+                                        pmt.Discount = decimal.ToInt32((pluno.Price * pluno.Qty) - pluno.SalePrice > 0 ? (pluno.Price * pluno.Qty) - pluno.SalePrice : 0);
+                                    }
 
                                     pmt.Disrate = pmt.Discount > 0 ? Math.Round((pluno.SalePrice * reqPluno.Qty) / (pluno.Price * reqPluno.Qty), 2) : 0; // 折扣率(四捨五入到小數點第二位)
 
