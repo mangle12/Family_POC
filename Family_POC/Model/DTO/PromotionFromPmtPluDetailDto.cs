@@ -15,5 +15,9 @@
         public decimal No_Vip_Saleoff { get; set; }
 
         public decimal Qty { get; set; }
+
+        public int? Match { get; set; }
+
+        public int? Group { get; set; }
     }
 }
