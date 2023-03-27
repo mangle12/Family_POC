@@ -37,5 +37,11 @@ namespace Family_POC.Controllers
             return SuccessResult(result);
         }
 
+        [HttpGet("health")]
+        public IActionResult GetHealthCheck()
+        { 
+            return Ok("Service Success");
+        }
+
     }
 }
