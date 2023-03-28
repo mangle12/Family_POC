@@ -300,12 +300,12 @@ namespace Family_POC.Service
             // 取得組合促銷資料 form Redis
             await GetPmtDetailOnRedis(req);
 
-            var t2Sw = new Stopwatch();
-            t2Sw.Start();
+            //var t2Sw = new Stopwatch();
+            //t2Sw.Start();
             // 取得促銷方案最優解
             var getPromotionPriceResp = await GetOptimalSolution(req);
-            t2Sw.Stop();
-            Console.WriteLine($"計算最優解耗時 : {t2Sw.ElapsedMilliseconds} 豪秒");
+            //t2Sw.Stop();
+            //Console.WriteLine($"計算最優解耗時 : {t2Sw.ElapsedMilliseconds} 豪秒");
 
             totalSw.Stop();
 
@@ -499,9 +499,6 @@ namespace Family_POC.Service
 
         private async Task GetPmtDetailOnRedis(List<GetPromotionPriceReq> req)
         {
-            var t0Sw = new Stopwatch();
-            t0Sw.Start();
-
             var promotionMainDto = new PromotionMainDto()
             {
                 Pmt123 = new List<PromotionDetailDto>(),
@@ -617,35 +614,17 @@ namespace Family_POC.Service
             // 取得所有符合條件的促銷代號
             var pNoList = promotionMainDto.Pmt123.Select(x => x.P_No).Union(promotionMainDto.Pmt45.Select(x => x.P_No).Union(_mixPluMultipleDtoLists.Select(x => x.P_No))).ToList();
 
-            t0Sw.Stop();
-
-            var t3Sw = new Stopwatch();
-            t3Sw.Start();
-
             // 計算促銷的排列組合
             _permuteLists = PermutationsUtil.Permute(pNoList);
-            t3Sw.Stop();
-
-            var t4Sw = new Stopwatch();
-            t4Sw.Start();
 
             // 計算各排列組合商品數量
             _countLists = await GetPermuteCount(req, promotionMainDto);
-            t4Sw.Stop();
 
-            var t5Sw = new Stopwatch();
-            t5Sw.Start();
             // 計算各排列組合價錢
             _priceList = await GetPermutePrice(promotionMainDto, req);
-            t5Sw.Stop();
-
-            Console.WriteLine($"找組數耗時 : {t0Sw.ElapsedMilliseconds} 豪秒");
-            Console.WriteLine($"計算促銷的排列組合耗時 : {t3Sw.ElapsedMilliseconds} 豪秒");
-            Console.WriteLine($"計算各排列組合商品數量耗時 : {t4Sw.ElapsedMilliseconds} 豪秒");
-            Console.WriteLine($"計算各排列組合價錢耗時 : {t5Sw.ElapsedMilliseconds} 豪秒");
 
             // 印出排列組合 & 組合數量 & 價錢
-            PrintResult(req);
+            //PrintResult(req);
         }
 
         /// <summary>
